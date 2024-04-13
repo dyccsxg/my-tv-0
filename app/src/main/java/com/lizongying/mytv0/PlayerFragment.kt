@@ -22,6 +22,7 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import com.google.android.exoplayer2.SimpleExoPlayer
@@ -146,12 +147,13 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                 }
             })
 
-//            val hlsMediaSource = HlsMediaSource.Factory(httpDataSource).createMediaSource(
-//                MediaItem.fromUri(videoUrl)
-//            )
-//            setMediaSource(hlsMediaSource)
+            tvModel.tv.headers?.let { httpDataSource.setDefaultRequestProperties(it) }
+            val hlsMediaSource = HlsMediaSource.Factory(httpDataSource).createMediaSource(
+                MediaItem.fromUri(videoUrl)
+            )
+            setMediaSource(hlsMediaSource)
 
-            setMediaItem(MediaItem.fromUri(videoUrl))
+            // setMediaItem(MediaItem.fromUri(videoUrl))
             prepare()
         }
         exoPlayer?.run {
