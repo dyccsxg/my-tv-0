@@ -40,6 +40,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        instance = this
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
@@ -516,5 +517,10 @@ class MainActivity : FragmentActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+        private lateinit var instance: MainActivity
+
+        fun getInstance(): MainActivity {
+            return instance
+        }
     }
 }
