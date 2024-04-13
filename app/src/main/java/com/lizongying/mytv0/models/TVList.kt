@@ -19,8 +19,8 @@ object TVList {
     private const val FILE_NAME = "channels.json"
     private lateinit var appDirectory: File
     private lateinit var serverUrl: String
-    private lateinit var list: List<TV>
-    var listModel: List<TVModel> = listOf()
+    var list: MutableList<TV> = mutableListOf()
+    var listModel: MutableList<TVModel> = mutableListOf()
     val groupModel = TVGroupModel()
 
     private val _position = MutableLiveData<Int>()
@@ -46,6 +46,7 @@ object TVList {
 
         try {
             str2List(str)
+            CustomTVList().loadCustomTvList(this)
         } catch (e: Exception) {
             Log.e("", "error $e")
             file.deleteOnExit()
@@ -104,7 +105,7 @@ object TVList {
 
         listModel = list.map { tv ->
             TVModel(tv)
-        }
+        }.toMutableList()
         setPosition(0)
 
         groupModel.clear()
