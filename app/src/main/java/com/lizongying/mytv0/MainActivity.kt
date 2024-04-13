@@ -76,6 +76,10 @@ class MainActivity : FragmentActivity() {
 
     fun watch() {
         TVList.listModel.forEach { tvModel ->
+            if (tvModel.errInfo.hasObservers() && tvModel.ready.hasObservers()) {
+                return@forEach
+            }
+
             tvModel.errInfo.observe(this) { _ ->
                 if (tvModel.errInfo.value != null
                     && tvModel.tv.id == TVList.position.value
