@@ -96,6 +96,7 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
 
                     (activity as MainActivity).ready()
                     Log.i(TAG, "player ready")
+                    (activity as MainActivity).startPlay()
                 }
             })
         }

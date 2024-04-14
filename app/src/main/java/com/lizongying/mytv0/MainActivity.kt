@@ -61,16 +61,18 @@ class MainActivity : FragmentActivity() {
         gestureDetector = GestureDetector(this, GestureListener(this))
 
         watch()
-
-        if (!TVList.setPosition(SP.position)) {
-            TVList.setPosition(0)
-        }
     }
 
     fun ready() {
         ok++
         if (ok == 1) {
             watch()
+        }
+    }
+
+    fun startPlay() {
+        if (!TVList.setPosition(SP.position)) {
+            TVList.setPosition(0)
         }
     }
 
