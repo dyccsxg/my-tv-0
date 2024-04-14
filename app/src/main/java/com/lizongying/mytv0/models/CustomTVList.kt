@@ -59,6 +59,7 @@ class CustomTVList {
             tvList.list.addAll(customTvList)
             tvList.listModel.addAll(customTvModelList)
             MainActivity.getInstance().watch()
+            MainActivity.getInstance().startPlay()
         }  catch (e: Exception) {
             Log.e(TAG, "append custom tv channels error $e")
             "添加自定义频道失败".showToast()

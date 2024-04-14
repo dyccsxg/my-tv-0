@@ -20,6 +20,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.TransferListener
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
@@ -65,10 +66,15 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                     val playerMediaCodecSelector = PlayerMediaCodecSelector()
                     renderersFactory?.setMediaCodecSelector(playerMediaCodecSelector)
                     renderersFactory?.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                    val loadControl = DefaultLoadControl.Builder()
+                        .setPrioritizeTimeOverSizeThresholds(true)
+                        .setBufferDurationsMs(2000, 9000, 500, 2000)
+                        .build()
 
                     player = context?.let {
                         ExoPlayer.Builder(it)
                             .setRenderersFactory(renderersFactory!!)
+                            .setLoadControl(loadControl)
                             .build()
                     }
                     playerView.player = player
