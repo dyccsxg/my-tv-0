@@ -11,26 +11,35 @@
 * 遥控器返回键关闭节目列表/配置
 * 打开配置页后，配置地址后并确认，更新节目列表
 
-可以通过本地服务器，导入视频源
+目前支持的配置格式：
 
-[my-tv-server](https://github.com/lizongying/my-tv-server)
-
-目前仅支持json格式，其他格式可以配合[my-tv-server](https://github.com/lizongying/my-tv-server)进行转换
-配置格式：
-
-```json
-[
-  {
-    "group": "组名",
-    "logo": "图标",
-    "name": "标准标题，用于自动获取节目等信息",
-    "title": "显示标题",
-    "uris": [
-      "视频链接"
+* txt
+    ```
+    组名,#genre#
+    标题,视频地址
+    ```
+* m3u
+    ```
+    #EXTM3U
+    #EXTINF:-1 tvg-name="标准标题" tvg-logo="图标" group-title="组名",标题
+    视频地址
+    ```
+* json
+    ```json
+    [
+      {
+        "group": "组名",
+        "logo": "图标",
+        "name": "标准标题",
+        "title": "标题",
+        "uris": [
+          "视频地址"
+        ]
+      }
     ]
-  }
-]
-```
+    ```
+
+推荐配合使用 [my-tv-server](https://github.com/lizongying/my-tv-server)
 
 下载安装 [releases](https://github.com/lizongying/my-tv-0/releases/)
 
@@ -40,6 +49,12 @@
 ![image](./screenshots/img_1.png)
 
 ## 更新日志
+
+### v1.0.7
+
+* 支持rtsp直播
+* 支持循环播放
+* 支持txt/m3u视频源
 
 ### v1.0.6
 
@@ -88,11 +103,8 @@ adb install my-tv-0.apk
 
 * 音量不同
 * 收藏夹
-* 自定义源
 * 节目增加预告
 * 频道列表优化
-* 更新的视频源不会覆盖已有的节目源
-* 更新后自动播放
 * 节目列表焦点消失的问题
 
 ## 赞赏
