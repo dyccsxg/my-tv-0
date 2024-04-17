@@ -250,11 +250,9 @@ class MainActivity : FragmentActivity() {
     }
 
     private val hideMenu = Runnable {
-        if (!menuFragment.isHidden) {
-            try {
+        if (!isFinishing && !supportFragmentManager.isStateSaved) {
+            if (!menuFragment.isHidden) {
                 supportFragmentManager.beginTransaction().hide(menuFragment).commit()
-            } catch (e: Exception) {
-                Log.e(TAG, "hideMenu error $e")
             }
         }
     }
