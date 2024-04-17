@@ -9,11 +9,12 @@
     <string name="dismiss_error">Dismiss</string>
 
     <string name="title_channel_reversal">换台反转</string>
-    <string name="title_channel_num">数字选台</string>
+    <string name="title_channel_num">换台时显示频道号</string>
     <string name="check_version">更新</string>
     <string name="title_boot_startup">开机自启</string>
     <string name="appreciate">赞赏</string>
     <string name="channels">配置地址</string>
     <string name="confirm">确认</string>
     <string name="title_repeat_info">循环播放时显示信息</string>
+    <string name="title_time">显示时间</string>
 </resources>

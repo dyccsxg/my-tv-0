@@ -35,6 +35,9 @@ class ChannelFragment : Fragment() {
     }
 
     fun show(channel: String) {
+        if (binding.channelContent.text.length > 1) {
+            return
+        }
         this.channel = "${binding.channelContent.text}$channel".toInt()
         handler.removeCallbacks(hideRunnable)
         handler.removeCallbacks(playRunnable)
@@ -43,6 +46,7 @@ class ChannelFragment : Fragment() {
             view?.visibility = View.VISIBLE
             handler.postDelayed(playRunnable, delay)
         } else {
+            binding.channelContent.text = "${binding.channelContent.text}$channel"
             handler.postDelayed(playRunnable, 0)
         }
     }
@@ -67,8 +71,7 @@ class ChannelFragment : Fragment() {
 
     private val playRunnable = Runnable {
         (activity as MainActivity).play(channel - 1)
-        binding.channelContent.text = ""
-        view?.visibility = View.GONE
+        handler.postDelayed(hideRunnable, delay)
     }
 
     override fun onDestroyView() {
