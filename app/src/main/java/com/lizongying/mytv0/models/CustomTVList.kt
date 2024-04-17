@@ -21,9 +21,9 @@ class CustomTVList {
         const val SXBC_GET_URL = "http://toutiao.cnwest.com/static/v1/group/stream.js"
         const val TC_TV1_GET_URL = "https://www.tcrbs.com/tvradio/tczhpd.html"
         const val TC_TV2_GET_URL = "https://www.tcrbs.com/tvradio/tcggpd.html"
+        const val TV189_CCTV6_GET_URL = "https://h5.nty.tv189.com/bff/apis/user/authPlayLive?contentId=C8000000000000000001703664302519"
     }
     private var customTvList = mutableListOf<TV>()
-    private var customTvModelList : List<TVModel> = listOf()
 
     /**
      * 加载自定义电视频道
@@ -33,6 +33,7 @@ class CustomTVList {
             loadSxbc()
             loadTctv("铜川综合", TC_TV1_GET_URL)
             loadTctv("铜川公共", TC_TV2_GET_URL)
+            loadTv189("CCTV6 电影频道", TV189_CCTV6_GET_URL)
             withContext(Dispatchers.Main) {
                 appendTvList(tvList)
             }
@@ -49,15 +50,24 @@ class CustomTVList {
                 v.id = position
                 position += 1
             }
-            customTvModelList = customTvList.map { tv -> TVModel(tv) }
-
-            val customTvListModel = TVListModel("看陕西")
-            for (tvModel in customTvModelList) {
-                customTvListModel.addTVModel(tvModel)
-            }
-            tvList.groupModel.addTVListModel(customTvListModel)
             tvList.list.addAll(customTvList)
-            tvList.listModel.addAll(customTvModelList)
+
+            val map: MutableMap<String, MutableList<TVModel>> = mutableMapOf()
+            for (v in customTvList) {
+                if (v.group !in map) {
+                    map[v.group] = mutableListOf()
+                }
+                map[v.group]?.add(TVModel(v))
+            }
+            for ((k, v) in map) {
+                val tvListModel = TVListModel(k)
+                for (v1 in v) {
+                    tvListModel.addTVModel(v1)
+                }
+                tvList.listModel.addAll(v)
+                TVList.groupModel.addTVListModel(tvListModel)
+            }
+
             MainActivity.getInstance().watch()
             MainActivity.getInstance().startPlay()
         }  catch (e: Exception) {
@@ -148,6 +158,44 @@ class CustomTVList {
         } catch (e: Exception) {
             Log.e(TAG, "load tctv channels error $e")
             "铜川电视台 获取失败".showToast()
+        }
+    }
+
+    /**
+     * 加载 天翼超高清 资源
+     */
+    private fun loadTv189(title: String, url: String) {
+        try {
+            val client = okhttp3.OkHttpClient()
+            val headers = okhttp3.Headers.Builder().add("Referer", "https://h5.nty.tv189.com/").build()
+            val request = okhttp3.Request.Builder().url(url).headers(headers).build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return
+            }
+            val body = response.body()!!.string()
+
+            var m3u8Url = ""
+            val pattern = Pattern.compile("(https?://.*m3u8.*)['\"]")
+            val matcher = pattern.matcher(body)
+            if (matcher.find()) {
+                m3u8Url = matcher.group(1) ?: ""
+            }
+            if (m3u8Url.isEmpty()) {
+                return
+            }
+            val tv = TV(0, "", title,
+                "",
+                "https://resources.yangshipin.cn/assets/oms/image/202306/741515efda91f03f455df8a7da4ee11fa9329139c276435cf0a9e2af398d5bf2.png?imageMogr2/format/webp",
+                "",
+                listOf(m3u8Url),
+                mapOf("Origin" to "https://h5.nty.tv189.com", "Referer" to "https://h5.nty.tv189.com/"),
+                "看央视",
+                listOf())
+            customTvList.add(tv)
+        } catch (e: Exception) {
+            Log.e(TAG, "load tv189 channels error $e")
+            "天翼超高清 获取失败".showToast()
         }
     }
 

@@ -77,7 +77,7 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                     renderersFactory?.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
                     val loadControl = DefaultLoadControl.Builder()
                         .setPrioritizeTimeOverSizeThresholds(true)
-                        .setBufferDurationsMs(2000, 9000, 500, 2000)
+                        .setBufferDurationsMs(5000, 10000, 1000, 3000)
                         .build()
 
                     player = context?.let {
@@ -186,13 +186,15 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                 }
             })
 
-            tvModel.tv.headers?.let { httpDataSource.setDefaultRequestProperties(it) }
-            val hlsMediaSource = HlsMediaSource.Factory(httpDataSource).createMediaSource(
-                MediaItem.fromUri(videoUrl)
-            )
-            setMediaSource(hlsMediaSource)
-
-            // setMediaItem(MediaItem.fromUri(videoUrl))
+            if (!tvModel.tv.headers.isNullOrEmpty()) {
+                tvModel.tv.headers?.let { httpDataSource.setDefaultRequestProperties(it) }
+                val hlsMediaSource = HlsMediaSource.Factory(httpDataSource).createMediaSource(
+                    MediaItem.fromUri(videoUrl)
+                )
+                setMediaSource(hlsMediaSource)
+            } else {
+                setMediaItem(MediaItem.fromUri(videoUrl))
+            }
             prepare()
         }
         exoPlayer?.run {
