@@ -17,9 +17,9 @@ import java.io.File
 
 object TVList {
     private const val TAG = "TVList"
-    private const val FILE_NAME = "channels.json"
-    private lateinit var appDirectory: File
-    private lateinit var serverUrl: String
+    const val FILE_NAME = "channels.json"
+    lateinit var appDirectory: File
+    lateinit var serverUrl: String
     var list: MutableList<TV> = mutableListOf()
     var listModel: MutableList<TVModel> = mutableListOf()
     val groupModel = TVGroupModel()
@@ -47,7 +47,7 @@ object TVList {
 
         try {
             str2List(str)
-            CustomTVList().loadCustomTvList(this)
+            CustomTVList().loadCustomTvList()
         } catch (e: Exception) {
             Log.e("", "error $e")
             file.deleteOnExit()

@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.nio.charset.StandardCharsets
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -28,29 +29,30 @@ class CustomTVList {
     /**
      * 加载自定义电视频道
      */
-    fun loadCustomTvList(tvList: TVList) {
+    fun loadCustomTvList() {
         CoroutineScope(Dispatchers.IO).launch {
             loadSxbc()
             loadTctv("铜川综合", TC_TV1_GET_URL)
             loadTctv("铜川公共", TC_TV2_GET_URL)
             loadTv189("CCTV6 电影频道", TV189_CCTV6_GET_URL)
             withContext(Dispatchers.Main) {
-                appendTvList(tvList)
+                appendTvList()
             }
+            autoLoadDefaultChannels()
         }
     }
 
     /**
      * 添加电视频道
      */
-    private fun appendTvList(tvList: TVList) {
+    private fun appendTvList() {
         try {
-            var position = tvList.listModel.size
+            var position = TVList.listModel.size
             for (v in customTvList) {
                 v.id = position
                 position += 1
             }
-            tvList.list.addAll(customTvList)
+            TVList.list.addAll(customTvList)
 
             val map: MutableMap<String, MutableList<TVModel>> = mutableMapOf()
             for (v in customTvList) {
@@ -64,7 +66,7 @@ class CustomTVList {
                 for (v1 in v) {
                     tvListModel.addTVModel(v1)
                 }
-                tvList.listModel.addAll(v)
+                TVList.listModel.addAll(v)
                 TVList.groupModel.addTVListModel(tvListModel)
             }
 
@@ -196,6 +198,33 @@ class CustomTVList {
         } catch (e: Exception) {
             Log.e(TAG, "load tv189 channels error $e")
             "天翼超高清 获取失败".showToast()
+        }
+    }
+
+    /**
+     * 自动加载默认频道
+     */
+    private fun autoLoadDefaultChannels() {
+        try {
+            val client = okhttp3.OkHttpClient()
+            val request = okhttp3.Request.Builder().url(TVList.serverUrl).build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return
+            }
+            val body = response.body()!!.string()
+            if (body.isNullOrEmpty()) {
+                return
+            }
+
+            val file = File(TVList.appDirectory, TVList.FILE_NAME)
+            if (!file.exists()) {
+                file.createNewFile()
+            }
+            file.writeText(body)
+        } catch (e: Exception) {
+            Log.e(TAG, "load default channels error $e")
+            "预置频道 更新失败".showToast()
         }
     }
 
