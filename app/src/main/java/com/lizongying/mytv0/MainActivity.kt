@@ -16,6 +16,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
+import com.lizongying.mytv0.models.CustomTVList
 import com.lizongying.mytv0.models.TVList
 
 
@@ -28,6 +29,7 @@ class MainActivity : FragmentActivity() {
     private var timeFragment = TimeFragment()
     private var menuFragment = MenuFragment()
     private var settingFragment = SettingFragment()
+    private var customTVList = CustomTVList()
 
     private val handler = Handler(Looper.myLooper()!!)
     private val delayHideMenu = 10000L
@@ -531,6 +533,11 @@ class MainActivity : FragmentActivity() {
         SP.positionGroup = TVList.groupModel.position.value!!
         SP.position = TVList.position.value!!
         Log.i(TAG, "position ${TVList.position.value!!} saved")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        customTVList.updateTvUri()
     }
 
     companion object {

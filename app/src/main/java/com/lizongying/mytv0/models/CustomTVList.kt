@@ -18,34 +18,60 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 
 class CustomTVList {
     companion object {
-        const val TAG = "ShaanxiTV"
+        const val TAG = "CustomTVList"
         const val SXBC_GET_URL = "http://toutiao.cnwest.com/static/v1/group/stream.js"
         const val TC_TV1_GET_URL = "https://www.tcrbs.com/tvradio/tczhpd.html"
         const val TC_TV2_GET_URL = "https://www.tcrbs.com/tvradio/tcggpd.html"
         const val TV189_CCTV6_GET_URL = "https://h5.nty.tv189.com/bff/apis/user/authPlayLive?contentId=C8000000000000000001703664302519"
     }
-    private var customTvList = mutableListOf<TV>()
 
     /**
      * 加载自定义电视频道
      */
     fun loadCustomTvList() {
         CoroutineScope(Dispatchers.IO).launch {
-            loadSxbc()
-            loadTctv("铜川综合", TC_TV1_GET_URL)
-            loadTctv("铜川公共", TC_TV2_GET_URL)
-            loadTv189("CCTV6 电影频道", TV189_CCTV6_GET_URL)
+            val customTvList = mutableListOf<TV>()
+            loadSxbc(customTvList)
+            loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
+            loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
+            loadTv189("CCTV6 电影频道", TV189_CCTV6_GET_URL, customTvList)
             withContext(Dispatchers.Main) {
-                appendTvList()
+                appendTvList(customTvList)
             }
-            autoLoadDefaultChannels()
+
+            val defaultTvList = mutableListOf<TV>()
+            loadDefaultChannels(defaultTvList)
+            withContext(Dispatchers.Main) {
+                updateTvUri(defaultTvList)
+            }
+        }
+    }
+
+    /**
+     * 更新频道播放地址
+     */
+    fun updateTvUri() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val customTvList = mutableListOf<TV>()
+            loadSxbc(customTvList)
+            loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
+            loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
+            loadTv189("CCTV6 电影频道", TV189_CCTV6_GET_URL, customTvList)
+            loadDefaultChannels(customTvList)
+            withContext(Dispatchers.Main) {
+                updateTvUri(customTvList)
+            }
         }
     }
 
     /**
      * 添加电视频道
      */
-    private fun appendTvList() {
+    private fun appendTvList(customTvList: MutableList<TV>) {
+        if (customTvList.isEmpty()) {
+            return
+        }
+
         try {
             var position = TVList.listModel.size
             for (v in customTvList) {
@@ -71,7 +97,6 @@ class CustomTVList {
             }
 
             MainActivity.getInstance().watch()
-            MainActivity.getInstance().startPlay()
         }  catch (e: Exception) {
             Log.e(TAG, "append custom tv channels error $e")
             "添加自定义频道失败".showToast()
@@ -81,7 +106,7 @@ class CustomTVList {
     /**
      * 加载 陕西网络广播电视台
      */
-    private fun loadSxbc() {
+    private fun loadSxbc(customTvList: MutableList<TV>) {
         try {
             val client = okhttp3.OkHttpClient()
             val headers = okhttp3.Headers.Builder().add("Referer", "http://live.snrtv.com/").build()
@@ -128,7 +153,7 @@ class CustomTVList {
     /**
      * 加载 铜川电视台
      */
-    private fun loadTctv(title: String, url: String) {
+    private fun loadTctv(title: String, url: String, customTvList: MutableList<TV>) {
         try {
             val client = okhttp3.OkHttpClient()
             val headers = okhttp3.Headers.Builder().add("Referer", "https://www.tcrbs.com/").build()
@@ -166,7 +191,7 @@ class CustomTVList {
     /**
      * 加载 天翼超高清 资源
      */
-    private fun loadTv189(title: String, url: String) {
+    private fun loadTv189(title: String, url: String, customTvList: MutableList<TV>) {
         try {
             val client = okhttp3.OkHttpClient()
             val headers = okhttp3.Headers.Builder().add("Referer", "https://h5.nty.tv189.com/").build()
@@ -204,7 +229,7 @@ class CustomTVList {
     /**
      * 自动加载默认频道
      */
-    private fun autoLoadDefaultChannels() {
+    private fun loadDefaultChannels(defaultTvList: MutableList<TV>) {
         try {
             val client = okhttp3.OkHttpClient()
             val request = okhttp3.Request.Builder().url(TVList.serverUrl).build()
@@ -217,6 +242,11 @@ class CustomTVList {
                 return
             }
 
+            val type = object : com.google.gson.reflect.TypeToken<List<TV>>() {}.type
+            val newTvList: MutableList<TV> = com.google.gson.Gson().fromJson(body, type)
+            defaultTvList.addAll(newTvList)
+
+            // 保存频道
             val file = File(TVList.appDirectory, TVList.FILE_NAME)
             if (!file.exists()) {
                 file.createNewFile()
@@ -225,6 +255,43 @@ class CustomTVList {
         } catch (e: Exception) {
             Log.e(TAG, "load default channels error $e")
             "预置频道 更新失败".showToast()
+        }
+    }
+
+    private fun updateTvUri(newTvList: MutableList<TV>) {
+        if (newTvList.isEmpty()) {
+            return
+        }
+
+        try {
+            val map: MutableMap<String, String> = mutableMapOf()
+            for (v in newTvList) {
+                map[v.title] = v.uris[0]
+            }
+
+            val position = TVList.position.value?:0
+            val currentTitle = TVList.getTVModel(position).tv.title
+            var isUriChanged = false
+            for (m in TVList.listModel) {
+                val title = m.tv.title
+                val oldUri = m.videoUrl.value
+                val newUri = map[title]
+                if (newUri.isNullOrBlank() || newUri == oldUri) {
+                    continue
+                }
+
+                m.setVideoUrl(newUri)
+                if (title == currentTitle) {
+                    isUriChanged = true
+                }
+                Log.i(TAG, "$title refresh uri from $oldUri to $newUri")
+            }
+            if (isUriChanged) {
+                TVList.setPosition(position)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Refresh tv uri failed $e")
+            "頻道地址 更新失败".showToast()
         }
     }
 
