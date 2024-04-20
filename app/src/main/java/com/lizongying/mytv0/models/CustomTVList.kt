@@ -269,9 +269,6 @@ class CustomTVList {
                 map[v.title] = v.uris[0]
             }
 
-            val position = TVList.position.value?:0
-            val currentTitle = TVList.getTVModel(position).tv.title
-            var isUriChanged = false
             for (m in TVList.listModel) {
                 val title = m.tv.title
                 val oldUri = m.videoUrl.value
@@ -281,14 +278,9 @@ class CustomTVList {
                 }
 
                 m.setVideoUrl(newUri)
-                if (title == currentTitle) {
-                    isUriChanged = true
-                }
                 Log.i(TAG, "$title refresh uri from $oldUri to $newUri")
             }
-            if (isUriChanged) {
-                TVList.setPosition(position)
-            }
+            MainActivity.getInstance().startPlay()
         } catch (e: Exception) {
             Log.e(TAG, "Refresh tv uri failed $e")
             "頻道地址 更新失败".showToast()
