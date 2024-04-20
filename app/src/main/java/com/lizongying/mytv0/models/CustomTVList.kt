@@ -2,6 +2,7 @@ package com.lizongying.mytv0.models
 
 import android.util.Log
 import com.lizongying.mytv0.MainActivity
+import com.lizongying.mytv0.SP
 import com.lizongying.mytv0.showToast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -286,8 +287,8 @@ class CustomTVList {
                 }
                 Log.i(TAG, "$title refresh uri from $oldUri to $newUri")
             }
-            if (isUriChanged) {
-                TVList.setPosition(position)
+            if (SP.position != position || isUriChanged) {
+                MainActivity.getInstance().startPlay()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Refresh tv uri failed $e")
