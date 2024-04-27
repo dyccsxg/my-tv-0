@@ -24,7 +24,18 @@ class CustomTVList {
         const val TC_TV1_GET_URL = "https://www.tcrbs.com/tvradio/tczhpd.html"
         const val TC_TV2_GET_URL = "https://www.tcrbs.com/tvradio/tcggpd.html"
         const val TV189_CCTV6_GET_URL = "https://h5.nty.tv189.com/bff/apis/user/authPlayLive?contentId=C8000000000000000001703664302519"
+        const val CF_BASE_URL = "http://cfss.cc"
+        const val CCTV1_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv1.png"
+        const val CCTV6_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv6.png"
+        const val CCTV8_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv8.png"
+        const val CCTV9_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv9.png"
+        const val CCTV10_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv10.png"
+        const val CCTV17_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv17.png"
     }
+    private val regexMap = mapOf(
+        "CCTV1 综合" to "[^\"]*/cctv1\\-[0-9]*.m3u8",
+        "CCTV8 电视剧" to "[^\"]*/cctv8\\-[0-9]*.m3u8",
+        "CCTV9 记录" to "[^\"]*/mk/cctv9\\-[0-9]*.m3u8")
 
     /**
      * 加载自定义电视频道
@@ -63,6 +74,59 @@ class CustomTVList {
                 updateTvUri(customTvList)
             }
         }
+    }
+
+    /**
+     * 刷新 CF 直播源 token
+     */
+    fun refreshToken(tvModel: TVModel): String {
+        var m3u8Url = ""
+        try {
+            val title = tvModel.tv.title
+            val regex = regexMap[title]
+            if (regex.isNullOrBlank()) {
+                return m3u8Url
+            }
+
+            val client = okhttp3.OkHttpClient()
+            val request = okhttp3.Request.Builder().url("$CF_BASE_URL/ds/").build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return m3u8Url
+            }
+            val body = response.body()!!.string()
+            val pattern = Pattern.compile("\"($regex)\"")
+            val matcher = pattern.matcher(body)
+            if (!matcher.find()) {
+                return m3u8Url
+            }
+            var playerUrl = matcher.group(1) ?: ""
+            if (playerUrl.isEmpty()) {
+                return m3u8Url
+            }
+            playerUrl = CF_BASE_URL + playerUrl
+
+            val request2 = okhttp3.Request.Builder().url(playerUrl).build()
+            val response2 = client.newCall(request2).execute()
+            if (!response2.isSuccessful) {
+                return m3u8Url
+            }
+            val body2 = response2.body()!!.string()
+            val pattern2 = Pattern.compile("['\"](.*.m3u8.*)['\"]")
+            val matcher2 = pattern2.matcher(body2)
+            if (!matcher2.find()) {
+                return m3u8Url
+            }
+            m3u8Url = matcher2.group(1) ?: ""
+            if (!m3u8Url.matches(Regex("^https?://.*"))) {
+                m3u8Url = CF_BASE_URL + m3u8Url
+            }
+            tvModel.tv.headers = mapOf("Origin" to CF_BASE_URL, "Referer" to playerUrl)
+        } catch (e: Exception) {
+            Log.e(TAG, "load cf channels error $e")
+            "长风直播源 获取失败".showToast()
+        }
+        return m3u8Url
     }
 
     /**
@@ -214,7 +278,7 @@ class CustomTVList {
             }
             val tv = TV(0, "", title,
                 "",
-                "https://resources.yangshipin.cn/assets/oms/image/202306/741515efda91f03f455df8a7da4ee11fa9329139c276435cf0a9e2af398d5bf2.png?imageMogr2/format/webp",
+                CCTV6_LOGO,
                 "",
                 listOf(m3u8Url),
                 mapOf("Origin" to "https://h5.nty.tv189.com", "Referer" to "https://h5.nty.tv189.com/"),
@@ -265,9 +329,9 @@ class CustomTVList {
         }
 
         try {
-            val map: MutableMap<String, String> = mutableMapOf()
+            val map: MutableMap<String, TV> = mutableMapOf()
             for (v in newTvList) {
-                map[v.title] = v.uris[0]
+                map[v.title] = v
             }
 
             val position = TVList.position.value?:0
@@ -276,12 +340,13 @@ class CustomTVList {
             for (m in TVList.listModel) {
                 val title = m.tv.title
                 val oldUri = m.videoUrl.value
-                val newUri = map[title]
-                if (newUri.isNullOrBlank() || newUri == oldUri) {
+                val newUri = map[title]?.uris?.get(0) ?: ""
+                if (newUri.isBlank() || newUri == oldUri) {
                     continue
                 }
 
                 m.setVideoUrl(newUri)
+                m.tv.headers = map[title]?.headers
                 if (title == currentTitle) {
                     isUriChanged = true
                 }

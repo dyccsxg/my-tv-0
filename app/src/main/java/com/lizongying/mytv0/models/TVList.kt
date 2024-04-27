@@ -23,6 +23,7 @@ object TVList {
     var list: MutableList<TV> = mutableListOf()
     var listModel: MutableList<TVModel> = mutableListOf()
     val groupModel = TVGroupModel()
+    private val customTVList = CustomTVList()
 
     private val _position = MutableLiveData<Int>()
     val position: LiveData<Int>
@@ -47,7 +48,7 @@ object TVList {
 
         try {
             str2List(str)
-            CustomTVList().loadCustomTvList()
+            customTVList.loadCustomTvList()
         } catch (e: Exception) {
             Log.e("", "error $e")
             file.deleteOnExit()
@@ -240,6 +241,16 @@ object TVList {
         }
 
         // set a new position or retry when position same
+        CoroutineScope(Dispatchers.IO).launch {
+            val tvModel = listModel[position]
+            val m3u8Url = customTVList.refreshToken(tvModel)
+            if (m3u8Url.isNotBlank()) {
+                withContext(Dispatchers.Main) {
+                    tvModel.setVideoUrl(m3u8Url)
+                    tvModel.setReady()
+                }
+            }
+        }
         listModel[position].setReady()
         return true
     }
