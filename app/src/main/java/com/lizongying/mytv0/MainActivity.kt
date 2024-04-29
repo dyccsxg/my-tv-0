@@ -1,8 +1,6 @@
 package com.lizongying.mytv0
 
 import android.content.Context
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
@@ -24,6 +22,8 @@ class MainActivity : FragmentActivity() {
 
     private var ok = 0
     private var playerFragment = PlayerFragment()
+    private val errorFragment = ErrorFragment()
+    private val loadingFragment = LoadingFragment()
     private var infoFragment = InfoFragment()
     private var channelFragment = ChannelFragment()
     private var timeFragment = TimeFragment()
@@ -42,15 +42,33 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        instance = this
+	instance = this
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val lp = window.attributes
+            lp.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            window.setAttributes(lp)
+        }
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
 
+        window.decorView.apply {
+            systemUiVisibility =
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        }
+
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
                 .add(R.id.main_browse_fragment, playerFragment)
+                .add(R.id.main_browse_fragment, errorFragment)
+                .add(R.id.main_browse_fragment, loadingFragment)
                 .add(R.id.main_browse_fragment, timeFragment)
                 .add(R.id.main_browse_fragment, infoFragment)
                 .add(R.id.main_browse_fragment, channelFragment)
@@ -58,27 +76,36 @@ class MainActivity : FragmentActivity() {
                 .add(R.id.main_browse_fragment, settingFragment)
                 .hide(menuFragment)
                 .hide(settingFragment)
+                .hide(errorFragment)
+                .hide(loadingFragment)
+                .hide(timeFragment)
                 .commitNow()
         }
 
         gestureDetector = GestureDetector(this, GestureListener(this))
 
-        watch()
-
-        if (!TVList.setPosition(SP.position)) {
-            TVList.setPosition(0)
-        }
-
         showTime()
     }
 
-    fun ready() {
+    fun ready(tag: String) {
+        Log.i(TAG, "ready $tag")
         ok++
-        if (ok == 1) {
-            watch()
+        if (ok == 3) {
+            Log.i(TAG, "watch")
+            TVList.groupModel.tvGroupModel.observe(this) { _ ->
+                if (TVList.groupModel.tvGroupModel.value != null) {
+                    watch()
+                    menuFragment.update()
+                }
+            }
+
+            if (!TVList.setPosition(SP.position)) {
+                Log.i(TAG, "setPosition 0")
+                TVList.setPosition(0)
+            }
         }
     }
-
+    
     fun startPlay() {
         if (!TVList.setPosition(SP.position)) {
             TVList.setPosition(0)
@@ -95,18 +122,31 @@ class MainActivity : FragmentActivity() {
                 if (tvModel.errInfo.value != null
                     && tvModel.tv.id == TVList.position.value
                 ) {
-                    Toast.makeText(this, tvModel.errInfo.value, Toast.LENGTH_LONG)
-                        .show()
+                    Log.i(TAG, "errInfo ${tvModel.tv.title} ${tvModel.errInfo.value}")
+                    if (tvModel.errInfo.value == "") {
+                        Log.i(TAG, "hideErrorFragment ${tvModel.errInfo.value.toString()}")
+                        hideErrorFragment()
+                        hideLoadingFragment()
+                        showPlayerFragment()
+                    } else {
+                        Log.i(TAG, "showErrorFragment ${tvModel.errInfo.value.toString()}")
+                        hidePlayerFragment()
+                        hideLoadingFragment()
+                        showErrorFragment(tvModel.errInfo.value.toString())
+                    }
                 }
             }
+
             tvModel.ready.observe(this) { _ ->
 
                 // not first time && channel is not changed
                 if (tvModel.ready.value != null
                     && tvModel.tv.id == TVList.position.value
                 ) {
+                    Log.i(TAG, "loading ${tvModel.tv.title}")
+                    hideErrorFragment()
+                    showLoadingFragment()
                     playerFragment.play(tvModel)
-                    Log.i(TAG, "info ${tvModel.tv.title}")
                     infoFragment.show(tvModel)
                     if (SP.channelNum) {
                         channelFragment.show(tvModel)
@@ -275,12 +315,11 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    fun showTime(){
-        Log.i(TAG, "showTime ${SP.time}")
+    fun showTime() {
         if (SP.time) {
-            timeFragment.show()
+            showTimeFragment()
         } else {
-            timeFragment.hide()
+            hideTimeFragment()
         }
     }
 
@@ -388,11 +427,93 @@ class MainActivity : FragmentActivity() {
         Log.i(TAG, "SP.time ${SP.time}")
     }
 
-    fun hideSettingFragment() {
+    private fun hideSettingFragment() {
         supportFragmentManager.beginTransaction()
             .hide(settingFragment)
             .commit()
         showTime()
+    }
+
+    private fun showErrorFragment(msg: String) {
+        errorFragment.show(msg)
+        if (!errorFragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .show(errorFragment)
+            .commitNow()
+    }
+
+    private fun hideErrorFragment() {
+        errorFragment.show("hide")
+        if (errorFragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .hide(errorFragment)
+            .commitNow()
+    }
+
+    private fun showLoadingFragment() {
+        if (!loadingFragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .show(loadingFragment)
+            .commitNow()
+    }
+
+    private fun hideLoadingFragment() {
+        if (loadingFragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .hide(loadingFragment)
+            .commitNow()
+    }
+
+    private fun showTimeFragment() {
+        if (!timeFragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .show(timeFragment)
+            .commitNow()
+    }
+
+    private fun hideTimeFragment() {
+        if (timeFragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .hide(timeFragment)
+            .commitNow()
+    }
+
+    private fun showPlayerFragment() {
+        if (!playerFragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .show(playerFragment)
+            .commit()
+    }
+
+    private fun hidePlayerFragment() {
+        if (playerFragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .hide(playerFragment)
+            .commit()
     }
 
     fun onKey(keyCode: Int): Boolean {
@@ -526,13 +647,6 @@ class MainActivity : FragmentActivity() {
         }
 
         return super.onKeyDown(keyCode, event)
-    }
-
-    override fun onStop() {
-        super.onStop()
-        SP.positionGroup = TVList.groupModel.position.value!!
-        SP.position = TVList.position.value!!
-        Log.i(TAG, "position ${TVList.position.value!!} saved")
     }
 
     override fun onResume() {
