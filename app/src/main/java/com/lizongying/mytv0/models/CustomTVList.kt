@@ -353,11 +353,17 @@ class CustomTVList {
                 Log.i(TAG, "$title refresh uri from $oldUri to $newUri")
             }
             if (SP.position != position || isUriChanged) {
-                MainActivity.getInstance().startPlay()
+                startPlay()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Refresh tv uri failed $e")
             "頻道地址 更新失败".showToast()
+        }
+    }
+
+    private fun startPlay() {
+        if (!TVList.setPosition(SP.position)) {
+            TVList.setPosition(0)
         }
     }
 

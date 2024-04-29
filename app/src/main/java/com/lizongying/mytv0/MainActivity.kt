@@ -106,12 +106,6 @@ class MainActivity : FragmentActivity() {
         }
     }
     
-    fun startPlay() {
-        if (!TVList.setPosition(SP.position)) {
-            TVList.setPosition(0)
-        }
-    }
-
     fun watch() {
         TVList.listModel.forEach { tvModel ->
             if (tvModel.errInfo.hasObservers() && tvModel.ready.hasObservers()) {
