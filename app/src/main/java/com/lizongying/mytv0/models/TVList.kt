@@ -253,9 +253,11 @@ object TVList {
         }
         listModel[position].setReady()
 
-        SP.positionGroup = groupModel.position.value!!
-        SP.position = position
-        Log.i(TAG, "saved $position")
+        if (position > 0) {
+            SP.positionGroup = groupModel.position.value!!
+            SP.position = position
+            Log.i(TAG, "saved $position")
+        }
 
         return true
     }
