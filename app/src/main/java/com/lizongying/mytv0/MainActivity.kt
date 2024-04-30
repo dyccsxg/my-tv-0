@@ -39,6 +39,8 @@ class MainActivity : FragmentActivity() {
 
     private lateinit var gestureDetector: GestureDetector
 
+    var server: SimpleServer? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -99,13 +101,25 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
-            if (!TVList.setPosition(SP.position)) {
-                Log.i(TAG, "setPosition 0")
-                TVList.setPosition(0)
+            if (SP.channel > 0 && SP.channel < TVList.listModel.size) {
+                TVList.setPosition(SP.channel - 1)
+            } else {
+                if (!TVList.setPosition(SP.position)) {
+                    Log.i(TAG, "setPosition 0")
+                    TVList.setPosition(0)
+                }
+            }
+            val port = PortUtil.findFreePort()
+            if (port != -1) {
+                server = SimpleServer(this, port)
             }
         }
     }
-    
+
+    fun setServer(server: String) {
+        settingFragment.setServer(server)
+    }
+
     fun watch() {
         TVList.listModel.forEach { tvModel ->
             if (tvModel.errInfo.hasObservers() && tvModel.ready.hasObservers()) {
@@ -649,6 +663,11 @@ class MainActivity : FragmentActivity() {
         }
 
         return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        server?.stop()
     }
 
     override fun onResume() {
