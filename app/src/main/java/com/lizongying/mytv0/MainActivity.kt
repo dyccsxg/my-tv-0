@@ -308,7 +308,11 @@ class MainActivity : FragmentActivity() {
 
     private val hideSetting = Runnable {
         if (!settingFragment.isHidden) {
-            supportFragmentManager.beginTransaction().hide(settingFragment).commitNow()
+            try {
+                supportFragmentManager.beginTransaction().hide(settingFragment).commitNow()
+            } catch (e: Exception) {
+                Log.e(TAG, "hideSetting error $e")
+            }
             showTime()
         }
     }
