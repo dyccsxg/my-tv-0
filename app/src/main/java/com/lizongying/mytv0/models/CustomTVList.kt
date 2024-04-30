@@ -33,9 +33,9 @@ class CustomTVList {
         const val CCTV17_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv17.png"
     }
     private val regexMap = mapOf(
-        "CCTV1 综合" to "[^\"]*/cctv1\\-[0-9]*.m3u8",
-        "CCTV8 电视剧" to "[^\"]*/cctv8\\-[0-9]*.m3u8",
-        "CCTV9 记录" to "[^\"]*/mk/cctv9\\-[0-9]*.m3u8")
+        "CCTV1" to "[^\"]*/cctv1\\-[0-9]*.m3u8",
+        "CCTV8" to "[^\"]*/cctv8\\-[0-9]*.m3u8",
+        "CCTV9" to "[^\"]*/mk/cctv9\\-[0-9]*.m3u8")
 
     /**
      * 加载自定义电视频道
@@ -43,10 +43,10 @@ class CustomTVList {
     fun loadCustomTvList() {
         CoroutineScope(Dispatchers.IO).launch {
             val customTvList = mutableListOf<TV>()
-            loadSxbc(customTvList)
+            loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
-            loadTv189("CCTV6 电影频道", TV189_CCTV6_GET_URL, customTvList)
+            loadSxbc(customTvList)
             withContext(Dispatchers.Main) {
                 appendTvList(customTvList)
             }
@@ -65,10 +65,10 @@ class CustomTVList {
     fun updateTvUri() {
         CoroutineScope(Dispatchers.IO).launch {
             val customTvList = mutableListOf<TV>()
-            loadSxbc(customTvList)
+            loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
-            loadTv189("CCTV6 电影频道", TV189_CCTV6_GET_URL, customTvList)
+            loadSxbc(customTvList)
             loadDefaultChannels(customTvList)
             withContext(Dispatchers.Main) {
                 updateTvUri(customTvList)
@@ -244,7 +244,7 @@ class CustomTVList {
                 "",
                 listOf(m3u8Url),
                 mapOf("Origin" to "https://www.tcrbs.com", "Referer" to "https://www.tcrbs.com/"),
-                "看陝西",
+                "看铜川",
                 listOf())
             customTvList.add(tv)
         } catch (e: Exception) {
