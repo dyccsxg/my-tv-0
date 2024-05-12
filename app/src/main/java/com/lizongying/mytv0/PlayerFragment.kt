@@ -24,7 +24,6 @@ import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import com.google.android.exoplayer2.Player.DISCONTINUITY_REASON_PERIOD_TRANSITION
@@ -107,10 +106,9 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                         override fun onIsPlayingChanged(isPlaying: Boolean) {
                             super.onIsPlayingChanged(isPlaying)
                             if (isPlaying) {
-                                Log.i(TAG, "播放中")
                                 tvModel?.setErrInfo("")
                             } else {
-                                Log.i(TAG, "播放停止")
+                                Log.i(TAG, "${tvModel?.tv?.title} 播放停止")
 //                                tvModel?.setErrInfo("播放停止")
                             }
                         }
@@ -193,15 +191,13 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                 }
             })
 
-            if (!tvModel.tv.headers.isNullOrEmpty()) {
-                tvModel.tv.headers?.let { httpDataSource.setDefaultRequestProperties(it) }
-                val hlsMediaSource = HlsMediaSource.Factory(httpDataSource).createMediaSource(
-                    MediaItem.fromUri(videoUrl)
-                )
-                setMediaSource(hlsMediaSource)
+            val dataSource = tvModel.buildSource()
+            if (dataSource != null) {
+                setMediaSource(dataSource)
             } else {
                 setMediaItem(MediaItem.fromUri(videoUrl))
             }
+
             prepare()
         }
         exoPlayer?.run {

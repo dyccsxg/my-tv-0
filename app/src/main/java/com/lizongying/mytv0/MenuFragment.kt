@@ -84,6 +84,16 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
         }
     }
 
+    fun updateList(position: Int) {
+        TVList.groupModel.setPosition(position)
+        SP.positionGroup = position
+        val tvListModel = TVList.groupModel.getTVListModel()
+        Log.i(TAG, "updateList tvListModel $position ${tvListModel?.size()}")
+        if (tvListModel != null) {
+            (binding.list.adapter as ListAdapter).update(tvListModel)
+        }
+    }
+
     private fun hideSelf() {
         requireActivity().supportFragmentManager.beginTransaction()
             .hide(this)
@@ -97,7 +107,7 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
         }
     }
 
-    override fun onItemClicked(tvListModel: TVListModel) {
+    override fun onItemClicked(position: Int) {
     }
 
     override fun onItemFocusChange(tvModel: TVModel, hasFocus: Boolean) {
@@ -121,7 +131,18 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
                 binding.group.visibility = GONE
                 groupAdapter.focusable(false)
                 listAdapter.focusable(true)
-                listAdapter.toPosition(listAdapter.tvListModel.position.value!!)
+                listAdapter.toPosition(TVList.getTVModel().listIndex)
+
+
+                if (TVList.getTVModel().groupIndex == TVList.groupModel.position.value!!) {
+                    Log.i(
+                        TAG,
+                        "list on show toPosition ${TVList.getTVModel().tv.title} ${TVList.getTVModel().listIndex}/${listAdapter.tvListModel.size()}"
+                    )
+                    listAdapter.toPosition(TVList.getTVModel().listIndex)
+                } else {
+                    listAdapter.toPosition(0)
+                }
                 return true
             }
 
@@ -144,6 +165,15 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
                 groupAdapter.toPosition(TVList.groupModel.position.value!!)
                 return true
             }
+//            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+//                binding.group.visibility = VISIBLE
+//                groupAdapter.focusable(true)
+//                listAdapter.focusable(false)
+//                listAdapter.clear()
+//                Log.i(TAG, "group toPosition on left")
+//                groupAdapter.toPosition(TVList.groupModel.position.value!!)
+//                return true
+//            }
         }
         return false
     }
@@ -159,15 +189,37 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
 //                    groupAdapter.focusable(false)
 //                    listAdapter.focusable(true)
 //                }
-                Log.i(TAG, "list on show toPosition ${listAdapter.tvListModel.position.value!!}")
-                listAdapter.toPosition(listAdapter.tvListModel.position.value!!)
+
+                val groupIndex = TVList.getTVModel().groupIndex
+                Log.i(
+                    TAG,
+                    "groupIndex $groupIndex ${TVList.groupModel.position.value!!}"
+                )
+
+                if (groupIndex == TVList.groupModel.position.value!!) {
+                    if (listAdapter.tvListModel.getIndex() != TVList.getTVModel().groupIndex) {
+                        updateList(groupIndex)
+                    }
+
+                    Log.i(
+                        TAG,
+                        "list on show toPosition ${TVList.getTVModel().tv.title} ${TVList.getTVModel().listIndex}/${listAdapter.tvListModel.size()}"
+                    )
+                    listAdapter.toPosition(TVList.getTVModel().listIndex)
+                } else {
+                    listAdapter.toPosition(0)
+                }
             }
             if (binding.group.isVisible) {
 //                groupAdapter.focusable(true)
 //                listAdapter.focusable(false)
-                Log.i(TAG, "group on show toPosition ${TVList.groupModel.position.value!!}")
+                Log.i(
+                    TAG,
+                    "group on show toPosition ${TVList.groupModel.position.value!!}/${TVList.groupModel.size()}"
+                )
                 groupAdapter.toPosition(TVList.groupModel.position.value!!)
             }
+            (activity as MainActivity).menuActive()
         } else {
             view?.post {
                 groupAdapter.visiable = false

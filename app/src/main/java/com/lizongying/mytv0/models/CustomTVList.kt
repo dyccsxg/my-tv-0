@@ -156,13 +156,18 @@ class CustomTVList {
                 }
                 map[v.group]?.add(TVModel(v))
             }
+
+            var groupIndex = TVList.groupModel.size()
             for ((k, v) in map) {
-                val tvListModel = TVListModel(k)
-                for (v1 in v) {
+                val tvListModel = TVListModel(k, groupIndex)
+                for ((listIndex, v1) in v.withIndex()) {
+                    v1.groupIndex = groupIndex
+                    v1.listIndex = listIndex
                     tvListModel.addTVModel(v1)
                 }
                 TVList.listModel.addAll(v)
                 TVList.groupModel.addTVListModel(tvListModel)
+                groupIndex++
             }
 
             MainActivity.getInstance().watch()

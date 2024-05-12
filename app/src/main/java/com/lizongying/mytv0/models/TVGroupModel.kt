@@ -14,8 +14,16 @@ class TVGroupModel : ViewModel() {
     val position: LiveData<Int>
         get() = _position
 
+    private val _change = MutableLiveData<Boolean>()
+    val change: LiveData<Boolean>
+        get() = _change
+
     fun setPosition(position: Int) {
         _position.value = position
+    }
+
+    fun setChange() {
+        _change.value = true
     }
 
     fun setTVListModelList(tvListModelList: List<TVListModel>) {
@@ -37,6 +45,10 @@ class TVGroupModel : ViewModel() {
         _tvGroupModel.value = mutableListOf(getTVListModel(0)!!, getTVListModel(1)!!)
         setPosition(0)
         getTVListModel(1)?.clear()
+    }
+
+    fun getTVListModel(): TVListModel? {
+        return getTVListModel(position.value as Int)
     }
 
     fun getTVListModel(idx: Int): TVListModel? {

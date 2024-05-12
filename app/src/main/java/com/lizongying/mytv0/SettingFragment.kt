@@ -1,11 +1,18 @@
 package com.lizongying.mytv0
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.marginEnd
 import androidx.core.view.marginTop
 import androidx.fragment.app.Fragment
@@ -18,6 +25,9 @@ class SettingFragment : Fragment() {
     private var _binding: SettingBinding? = null
     private val binding get() = _binding!!
 
+    private lateinit var uri: Uri
+
+    private lateinit var updateManager: UpdateManager
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -73,9 +83,20 @@ class SettingFragment : Fragment() {
             (activity as MainActivity).settingActive()
         }
 
-        val updateManager = UpdateManager(context, this, context.appVersionCode)
+        binding.qrcode.setOnClickListener {
+            val imageModalFragment = ModalFragment()
+            val size = Utils.dpToPx(200)
+            val img = QrCodeUtil().createQRCodeBitmap(binding.server.text.toString(), size, size)
+            val args = Bundle()
+            args.putParcelable("bitmap", img);
+            imageModalFragment.arguments = args
+
+            imageModalFragment.show(requireFragmentManager(), ModalFragment.TAG)
+            (activity as MainActivity).settingActive()
+        }
+
         binding.checkVersion.setOnClickListener {
-            OnClickListenerCheckVersion(updateManager)
+            requestInstallPermissions()
             (activity as MainActivity).settingActive()
         }
 
@@ -83,22 +104,30 @@ class SettingFragment : Fragment() {
         config.text = SP.config?.let { Editable.Factory.getInstance().newEditable(it) }
             ?: Editable.Factory.getInstance().newEditable("")
         binding.confirmConfig.setOnClickListener {
-            var uri = config.text.toString().trim()
-            uri = Utils.formatUrl(uri)
-            if (Uri.parse(uri).isAbsolute) {
-                TVList.update(uri)
-                SP.config = uri
+            val url = config.text.toString().trim()
+            uri = Uri.parse(url)
+            if (uri.scheme == "") {
+                uri = uri.buildUpon().scheme("http").build()
+            }
+            Log.i(TAG, "Uri $uri")
+            if (uri.isAbsolute) {
+                Log.i(TAG, "Uri ok")
+                if (uri.scheme == "file") {
+                    requestReadPermissions()
+                } else {
+                    TVList.parseUri(uri)
+                }
             } else {
                 config.error = "无效的地址"
             }
             (activity as MainActivity).settingActive()
         }
 
-        val defaultChannel = binding.defaultChannel
+        val defaultChannel = binding.channel
         defaultChannel.text =
             SP.channel.let { Editable.Factory.getInstance().newEditable(it.toString()) }
                 ?: Editable.Factory.getInstance().newEditable("")
-        binding.confirmDefaultChannel.setOnClickListener {
+        binding.confirmChannel.setOnClickListener {
             val c = defaultChannel.text.toString().trim()
             var channel = 0
             try {
@@ -114,14 +143,24 @@ class SettingFragment : Fragment() {
             (activity as MainActivity).settingActive()
         }
 
+        binding.clear.setOnClickListener {
+            SP.config = ""
+            config.text = Editable.Factory.getInstance().newEditable("")
+            SP.channel = 0
+            defaultChannel.text = Editable.Factory.getInstance().newEditable("")
+            context.deleteFile(TVList.FILE_NAME)
+            SP.position = 0
+            TVList.setPosition(0)
+        }
+
         binding.appreciate.setOnClickListener {
-            val imageModalFragment = AppreciateModalFragment()
+            val imageModalFragment = ModalFragment()
 
             val args = Bundle()
-            args.putInt(AppreciateModalFragment.KEY, R.drawable.appreciate)
+            args.putInt(ModalFragment.KEY_DRAWABLE_ID, R.drawable.appreciate)
             imageModalFragment.arguments = args
 
-            imageModalFragment.show(requireFragmentManager(), AppreciateModalFragment.TAG)
+            imageModalFragment.show(requireFragmentManager(), ModalFragment.TAG)
             (activity as MainActivity).settingActive()
         }
 
@@ -150,10 +189,17 @@ class SettingFragment : Fragment() {
         layoutParamsVersion.topMargin = application.px2Px(binding.version.marginTop)
         binding.version.layoutParams = layoutParamsVersion
 
+        binding.qrcode.layoutParams.width =
+            application.px2Px(binding.qrcode.layoutParams.width)
+        binding.qrcode.layoutParams.height =
+            application.px2Px(binding.qrcode.layoutParams.height)
+        binding.qrcode.textSize = application.px2PxFont(binding.qrcode.textSize)
+        val layoutParamsQrcode =
+            binding.qrcode.layoutParams as ViewGroup.MarginLayoutParams
+        layoutParamsQrcode.marginEnd = application.px2Px(binding.qrcode.marginEnd)
+        binding.qrcode.layoutParams = layoutParamsQrcode
+
         binding.server.textSize = application.px2PxFont(binding.server.textSize)
-        val layoutParamsServer = binding.server.layoutParams as ViewGroup.MarginLayoutParams
-        layoutParamsServer.topMargin = application.px2Px(binding.server.marginTop)
-        binding.server.layoutParams = layoutParamsServer
 
         binding.checkVersion.layoutParams.width =
             application.px2Px(binding.checkVersion.layoutParams.width)
@@ -181,21 +227,32 @@ class SettingFragment : Fragment() {
             application.px2Px(binding.config.layoutParams.width)
         binding.config.textSize = application.px2PxFont(binding.config.textSize)
 
-        binding.confirmDefaultChannel.layoutParams.width =
-            application.px2Px(binding.confirmDefaultChannel.layoutParams.width)
-        binding.confirmDefaultChannel.layoutParams.height =
-            application.px2Px(binding.confirmDefaultChannel.layoutParams.height)
-        binding.confirmDefaultChannel.textSize =
-            application.px2PxFont(binding.confirmDefaultChannel.textSize)
+        binding.confirmChannel.layoutParams.width =
+            application.px2Px(binding.confirmChannel.layoutParams.width)
+        binding.confirmChannel.layoutParams.height =
+            application.px2Px(binding.confirmChannel.layoutParams.height)
+        binding.confirmChannel.textSize =
+            application.px2PxFont(binding.confirmChannel.textSize)
         val layoutParamsConfirmDefaultChannel =
-            binding.confirmDefaultChannel.layoutParams as ViewGroup.MarginLayoutParams
+            binding.confirmChannel.layoutParams as ViewGroup.MarginLayoutParams
         layoutParamsConfirmDefaultChannel.marginEnd =
-            application.px2Px(binding.confirmDefaultChannel.marginEnd)
-        binding.confirmDefaultChannel.layoutParams = layoutParamsConfirmDefaultChannel
+            application.px2Px(binding.confirmChannel.marginEnd)
+        binding.confirmChannel.layoutParams = layoutParamsConfirmDefaultChannel
 
-        binding.defaultChannel.layoutParams.width =
-            application.px2Px(binding.defaultChannel.layoutParams.width)
-        binding.defaultChannel.textSize = application.px2PxFont(binding.defaultChannel.textSize)
+        binding.channel.layoutParams.width =
+            application.px2Px(binding.channel.layoutParams.width)
+        binding.channel.textSize = application.px2PxFont(binding.channel.textSize)
+
+        binding.clear.layoutParams.width =
+            application.px2Px(binding.clear.layoutParams.width)
+        binding.clear.layoutParams.height =
+            application.px2Px(binding.clear.layoutParams.height)
+        binding.clear.textSize = application.px2PxFont(binding.clear.textSize)
+        val layoutParamsPermission =
+            binding.clear.layoutParams as ViewGroup.MarginLayoutParams
+        layoutParamsPermission.topMargin =
+            application.px2Px(binding.clear.marginTop)
+        binding.clear.layoutParams = layoutParamsPermission
 
         binding.appreciate.layoutParams.width =
             application.px2Px(binding.appreciate.layoutParams.width)
@@ -264,18 +321,13 @@ class SettingFragment : Fragment() {
             application.px2Px(binding.switchConfigAutoLoad.marginTop)
         binding.switchConfigAutoLoad.layoutParams = layoutParamsConfigAutoLoad
 
+        updateManager = UpdateManager(context, context.appVersionCode)
+
         return binding.root
     }
 
-    internal class OnClickListenerCheckVersion(private val updateManager: UpdateManager) :
-        View.OnClickListener {
-        override fun onClick(view: View?) {
-            updateManager.checkAndUpdate()
-        }
-    }
-
     fun setServer(server: String) {
-        binding.server.text = "本机配置 http://$server"
+        binding.server.text = "http://$server"
     }
 
     fun setVersionName(versionName: String) {
@@ -289,6 +341,105 @@ class SettingFragment : Fragment() {
         (activity as MainActivity).showTime()
     }
 
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden) {
+            val config = binding.config
+            config.text = SP.config?.let { Editable.Factory.getInstance().newEditable(it) }
+                ?: Editable.Factory.getInstance().newEditable("")
+        }
+    }
+
+    private fun requestInstallPermissions() {
+        val context = requireContext()
+        val permissionsList: MutableList<String> = ArrayList()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+            permissionsList.add(Manifest.permission.REQUEST_INSTALL_PACKAGES)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionsList.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionsList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+
+        if (permissionsList.isNotEmpty()) {
+            ActivityCompat.requestPermissions(
+                requireActivity(),
+                permissionsList.toTypedArray<String>(),
+                PERMISSIONS_REQUEST_CODE
+            )
+        } else {
+            updateManager.checkAndUpdate()
+        }
+    }
+
+    private fun requestReadPermissions() {
+        val context = requireContext()
+        val permissionsList: MutableList<String> = ArrayList()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionsList.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        if (permissionsList.isNotEmpty()) {
+            ActivityCompat.requestPermissions(
+                requireActivity(),
+                permissionsList.toTypedArray<String>(),
+                PERMISSIONS_REQUEST_CODE
+            )
+        } else {
+            TVList.parseUri(uri)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_READ_EXTERNAL_STORAGE_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                TVList.parseUri(uri)
+            } else {
+                "权限授权失败".showToast(Toast.LENGTH_LONG)
+            }
+        }
+        if (requestCode == PERMISSIONS_REQUEST_CODE) {
+            var allPermissionsGranted = true
+            for (result in grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allPermissionsGranted = false
+                    break
+                }
+            }
+            if (allPermissionsGranted) {
+                updateManager.checkAndUpdate()
+            } else {
+                "权限授权失败".showToast(Toast.LENGTH_LONG)
+            }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
@@ -296,6 +447,8 @@ class SettingFragment : Fragment() {
 
     companion object {
         const val TAG = "SettingFragment"
+        const val PERMISSIONS_REQUEST_CODE = 1
+        const val PERMISSION_READ_EXTERNAL_STORAGE_REQUEST_CODE = 2
     }
 }
 

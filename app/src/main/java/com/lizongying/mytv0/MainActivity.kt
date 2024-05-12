@@ -13,6 +13,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import com.lizongying.mytv0.models.CustomTVList
 import com.lizongying.mytv0.models.TVList
@@ -32,14 +33,14 @@ class MainActivity : FragmentActivity() {
     private var customTVList = CustomTVList()
 
     private val handler = Handler(Looper.myLooper()!!)
-    private val delayHideMenu = 10000L
-    private val delayHideSetting = 60000L
+    private val delayHideMenu = 10 * 1000L
+    private val delayHideSetting = 3 * 60 * 1000L
 
     private var doubleBackToExitPressedOnce = false
 
     private lateinit var gestureDetector: GestureDetector
 
-    var server: SimpleServer? = null
+    private var server: SimpleServer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,21 +95,35 @@ class MainActivity : FragmentActivity() {
         ok++
         if (ok == 3) {
             Log.i(TAG, "watch")
-            TVList.groupModel.tvGroupModel.observe(this) { _ ->
+            TVList.groupModel.change.observe(this) { _ ->
+                Log.i(TAG, "groupModel changed")
                 if (TVList.groupModel.tvGroupModel.value != null) {
                     watch()
+                    Log.i(TAG, "menuFragment update")
                     menuFragment.update()
                 }
             }
 
-            if (SP.channel > 0 && SP.channel < TVList.listModel.size) {
-                TVList.setPosition(SP.channel - 1)
+            if (SP.channel > 0) {
+                if (SP.channel < TVList.listModel.size) {
+                    TVList.setPosition(SP.channel - 1)
+                    "播放默认频道".showToast(Toast.LENGTH_LONG)
+                } else {
+                    SP.channel = 0
+                    TVList.setPosition(0)
+                    "默认频道超出频道列表范围，已自动设置为0".showToast(Toast.LENGTH_LONG)
+                }
             } else {
                 if (!TVList.setPosition(SP.position)) {
-                    Log.i(TAG, "setPosition 0")
                     TVList.setPosition(0)
+                    "上次频道超出频道列表范围，已自动设置为0".showToast(Toast.LENGTH_LONG)
+                } else {
+                    "播放上次频道".showToast(Toast.LENGTH_LONG)
                 }
             }
+
+            // TODO group position
+
             val port = PortUtil.findFreePort()
             if (port != -1) {
                 server = SimpleServer(this, port)
@@ -130,16 +145,14 @@ class MainActivity : FragmentActivity() {
                 if (tvModel.errInfo.value != null
                     && tvModel.tv.id == TVList.position.value
                 ) {
-                    Log.i(TAG, "errInfo ${tvModel.tv.title} ${tvModel.errInfo.value}")
+                    hideFragment(loadingFragment)
                     if (tvModel.errInfo.value == "") {
-                        Log.i(TAG, "hideErrorFragment ${tvModel.errInfo.value.toString()}")
+                        Log.i(TAG, "${tvModel.tv.title} 播放中")
                         hideErrorFragment()
-                        hideLoadingFragment()
-                        showPlayerFragment()
+                        showFragment(playerFragment)
                     } else {
-                        Log.i(TAG, "showErrorFragment ${tvModel.errInfo.value.toString()}")
-                        hidePlayerFragment()
-                        hideLoadingFragment()
+                        Log.i(TAG, "${tvModel.tv.title} ${tvModel.errInfo.value.toString()}")
+                        hideFragment(playerFragment)
                         showErrorFragment(tvModel.errInfo.value.toString())
                     }
                 }
@@ -153,12 +166,24 @@ class MainActivity : FragmentActivity() {
                 ) {
                     Log.i(TAG, "loading ${tvModel.tv.title}")
                     hideErrorFragment()
-                    showLoadingFragment()
+                    showFragment(loadingFragment)
                     playerFragment.play(tvModel)
                     infoFragment.show(tvModel)
                     if (SP.channelNum) {
                         channelFragment.show(tvModel)
                     }
+                }
+            }
+
+            tvModel.like.observe(this) { _ ->
+                if (tvModel.like.value != null) {
+                    val liked = tvModel.like.value as Boolean
+                    if (liked) {
+                        TVList.groupModel.getTVListModel(0)?.replaceTVModel(tvModel)
+                    } else {
+                        TVList.groupModel.getTVListModel(0)?.removeTVModel(tvModel.tv.id)
+                    }
+                    SP.setLike(tvModel.tv.id, liked)
                 }
             }
         }
@@ -177,8 +202,7 @@ class MainActivity : FragmentActivity() {
         private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-            Log.i(TAG, "onSingleTapConfirmed showMenu")
-            showMenu()
+            showFragment(menuFragment)
             return true
         }
 
@@ -265,7 +289,7 @@ class MainActivity : FragmentActivity() {
     }
 
     fun onPlayEnd() {
-        val tvModel = TVList.getTVModelCurrent()
+        val tvModel = TVList.getTVModel()
         if (SP.repeatInfo) {
             infoFragment.show(tvModel)
             if (SP.channelNum) {
@@ -275,27 +299,65 @@ class MainActivity : FragmentActivity() {
     }
 
     fun play(position: Int) {
+        val prevGroup = TVList.getTVModel().groupIndex
         if (position > -1 && position < TVList.size()) {
             TVList.setPosition(position)
+            val currentGroup = TVList.getTVModel().groupIndex
+            if (currentGroup != prevGroup) {
+                Log.i(TAG, "group change")
+                menuFragment.updateList(currentGroup)
+            }
         } else {
             Toast.makeText(this, "频道不存在", Toast.LENGTH_LONG).show()
         }
     }
 
     fun prev() {
+        val prevGroup = TVList.getTVModel().groupIndex
         var position = TVList.position.value?.dec() ?: 0
         if (position == -1) {
             position = TVList.size() - 1
         }
         TVList.setPosition(position)
+        val currentGroup = TVList.getTVModel().groupIndex
+        if (currentGroup != prevGroup) {
+            Log.i(TAG, "group change")
+            menuFragment.updateList(currentGroup)
+        }
     }
 
     fun next() {
+        val prevGroup = TVList.getTVModel().groupIndex
         var position = TVList.position.value?.inc() ?: 0
         if (position == TVList.size()) {
             position = 0
         }
         TVList.setPosition(position)
+        val currentGroup = TVList.getTVModel().groupIndex
+        if (currentGroup != prevGroup) {
+            Log.i(TAG, "group change")
+            menuFragment.updateList(currentGroup)
+        }
+    }
+
+    private fun showFragment(fragment: Fragment) {
+        if (!fragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .show(fragment)
+            .commitNow()
+    }
+
+    private fun hideFragment(fragment: Fragment) {
+        if (fragment.isHidden) {
+            return
+        }
+
+        supportFragmentManager.beginTransaction()
+            .hide(fragment)
+            .commitNow()
     }
 
     fun menuActive() {
@@ -333,9 +395,9 @@ class MainActivity : FragmentActivity() {
 
     fun showTime() {
         if (SP.time) {
-            showTimeFragment()
+            showFragment(timeFragment)
         } else {
-            hideTimeFragment()
+            hideFragment(timeFragment)
         }
     }
 
@@ -399,32 +461,6 @@ class MainActivity : FragmentActivity() {
         }, 2000)
     }
 
-    fun switchMainFragment() {
-        val transaction = supportFragmentManager.beginTransaction()
-
-        if (menuFragment.isHidden) {
-//            menuFragment.setPosition()
-            transaction.show(menuFragment)
-            menuActive()
-        } else {
-            transaction.hide(menuFragment)
-        }
-
-        transaction.commit()
-    }
-
-
-    private fun showMenu() {
-        if (!settingFragment.isHidden) {
-            return
-        }
-
-        supportFragmentManager.beginTransaction()
-            .show(menuFragment)
-            .commit()
-        menuActive()
-    }
-
     private fun showSetting() {
         if (!menuFragment.isHidden) {
             return
@@ -470,66 +506,6 @@ class MainActivity : FragmentActivity() {
         supportFragmentManager.beginTransaction()
             .hide(errorFragment)
             .commitNow()
-    }
-
-    private fun showLoadingFragment() {
-        if (!loadingFragment.isHidden) {
-            return
-        }
-
-        supportFragmentManager.beginTransaction()
-            .show(loadingFragment)
-            .commitNow()
-    }
-
-    private fun hideLoadingFragment() {
-        if (loadingFragment.isHidden) {
-            return
-        }
-
-        supportFragmentManager.beginTransaction()
-            .hide(loadingFragment)
-            .commitNow()
-    }
-
-    private fun showTimeFragment() {
-        if (!timeFragment.isHidden) {
-            return
-        }
-
-        supportFragmentManager.beginTransaction()
-            .show(timeFragment)
-            .commitNow()
-    }
-
-    private fun hideTimeFragment() {
-        if (timeFragment.isHidden) {
-            return
-        }
-
-        supportFragmentManager.beginTransaction()
-            .hide(timeFragment)
-            .commitNow()
-    }
-
-    private fun showPlayerFragment() {
-        if (!playerFragment.isHidden) {
-            return
-        }
-
-        supportFragmentManager.beginTransaction()
-            .show(playerFragment)
-            .commit()
-    }
-
-    private fun hidePlayerFragment() {
-        if (playerFragment.isHidden) {
-            return
-        }
-
-        supportFragmentManager.beginTransaction()
-            .hide(playerFragment)
-            .commit()
     }
 
     fun onKey(keyCode: Int): Boolean {
@@ -621,11 +597,11 @@ class MainActivity : FragmentActivity() {
             }
 
             KeyEvent.KEYCODE_ENTER -> {
-                switchMainFragment()
+                showFragment(menuFragment)
             }
 
             KeyEvent.KEYCODE_DPAD_CENTER -> {
-                switchMainFragment()
+                showFragment(menuFragment)
             }
 
             KeyEvent.KEYCODE_DPAD_UP -> {
@@ -645,8 +621,9 @@ class MainActivity : FragmentActivity() {
             }
 
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                showMenu()
-//                return true
+                if (settingFragment.isHidden) {
+                    showFragment(menuFragment)
+                }
             }
 
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
