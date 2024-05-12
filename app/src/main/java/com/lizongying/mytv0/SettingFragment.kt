@@ -170,6 +170,7 @@ class SettingFragment : Fragment() {
 
         binding.exit.setOnClickListener {
             requireActivity().finishAffinity()
+            android.os.Process.killProcess(android.os.Process.myPid())
         }
 
         val application = requireActivity().applicationContext as MyTvApplication

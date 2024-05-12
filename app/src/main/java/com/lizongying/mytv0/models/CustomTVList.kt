@@ -38,7 +38,7 @@ class CustomTVList {
         "CCTV3" to "[^\"]*/cctv3\\-[0-9]*.m3u8",
         "CCTV6" to "[^\"]*/cctv6\\-[0-9]*.m3u8",
         "CCTV8" to "[^\"]*/cctv8\\-[0-9]*.m3u8",
-        "CCTV9" to "[^\"]*/cctv9\\-[0-9]*.m3u8",
+        "CCTV9" to "[^\"]*/cq/cctv9.m3u8",
         "CCTV10" to "[^\"]*/cctv10\\-[0-9]*.m3u8",
         "CCTV17" to "[^\"]*/cctv17\\-[0-9]*.m3u8")
 
