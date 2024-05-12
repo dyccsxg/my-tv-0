@@ -124,7 +124,7 @@ class TVModel(var tv: TV) : ViewModel() {
                 RtspMediaSource.Factory().setUserAgent(userAgent).createMediaSource(mediaItem)
             }
         } else {
-            null
+            HlsMediaSource.Factory(httpDataSource).createMediaSource(mediaItem)
         }
     }
 
