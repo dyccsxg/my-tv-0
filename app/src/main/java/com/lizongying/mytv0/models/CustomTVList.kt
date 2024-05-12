@@ -20,6 +20,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 class CustomTVList {
     companion object {
         const val TAG = "CustomTVList"
+        const val DEFAULT_SERVER_URL = "https://gitee.com/usm/notes/raw/master/tv/cctv.json"
         const val SXBC_GET_URL = "http://toutiao.cnwest.com/static/v1/group/stream.js"
         const val TC_TV1_GET_URL = "https://www.tcrbs.com/tvradio/tczhpd.html"
         const val TC_TV2_GET_URL = "https://www.tcrbs.com/tvradio/tcggpd.html"
@@ -306,7 +307,7 @@ class CustomTVList {
     private fun loadDefaultChannels(defaultTvList: MutableList<TV>) {
         try {
             val client = okhttp3.OkHttpClient()
-            val request = okhttp3.Request.Builder().url(TVList.serverUrl).build()
+            val request = okhttp3.Request.Builder().url(DEFAULT_SERVER_URL).build()
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
                 return

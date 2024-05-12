@@ -98,7 +98,6 @@
                 android:layout_height="wrap_content"
                 android:textSize="14sp"
                 android:autofillHints=""
-                android:text="@string/server_url"
                 android:hint="@string/channels"
                 android:scrollbars="vertical"
                 android:inputType="textMultiLine" />

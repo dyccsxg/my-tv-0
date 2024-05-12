@@ -22,7 +22,7 @@ object TVList {
     private const val TAG = "TVList"
     const val FILE_NAME = "channels.txt"
     lateinit var appDirectory: File
-    lateinit var serverUrl: String
+    private lateinit var serverUrl: String
     var list: MutableList<TV> = mutableListOf()
     var listModel: MutableList<TVModel> = mutableListOf()
     val groupModel = TVGroupModel()
@@ -39,7 +39,6 @@ object TVList {
         groupModel.addTVListModel(TVListModel("全部频道", 1))
 
         appDirectory = context.filesDir
-        serverUrl = context.resources.getString(R.string.server_url)
         val file = File(appDirectory, FILE_NAME)
         val str = if (file.exists()) {
             Log.i(TAG, "read $file")

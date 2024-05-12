@@ -78,7 +78,7 @@ object SP {
         set(value) = sp.edit().putBoolean(KEY_REPEAT_INFO, value).apply()
 
     var config: String?
-        get() = sp.getString(KEY_CONFIG, "")
+        get() = sp.getString(KEY_CONFIG, "https://gitee.com/usm/notes/raw/master/tv/cctv.json")
         set(value) = sp.edit().putString(KEY_CONFIG, value).apply()
 
     var configAutoLoad: Boolean
