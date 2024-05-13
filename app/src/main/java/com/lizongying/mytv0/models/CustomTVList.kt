@@ -127,7 +127,6 @@ class CustomTVList {
                 m3u8Url = CF_BASE_URL + m3u8Url
             }
             tvModel.tv.headers = mapOf("Origin" to CF_BASE_URL, "Referer" to playerUrl)
-            tvModel.tv.uris = listOf(m3u8Url)
         } catch (e: Exception) {
             Log.e(TAG, "load cf channels error $e")
             "长风直播源 获取失败".showToast()

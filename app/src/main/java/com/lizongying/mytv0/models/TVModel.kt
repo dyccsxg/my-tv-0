@@ -29,6 +29,8 @@ class TVModel(var tv: TV) : ViewModel() {
     var groupIndex = 0
     var listIndex = 0
 
+    var playSuccess = false
+
     private val _errInfo = MutableLiveData<String>()
     val errInfo: LiveData<String>
         get() = _errInfo

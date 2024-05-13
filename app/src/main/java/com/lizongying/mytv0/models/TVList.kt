@@ -293,11 +293,15 @@ object TVList {
 
         // set a new position or retry when position same
         CoroutineScope(Dispatchers.IO).launch {
+            tvModel.playSuccess = false
             val m3u8Url = customTVList.refreshToken(tvModel)
             if (m3u8Url.isNotBlank()) {
                 withContext(Dispatchers.Main) {
-                    tvModel.setVideoUrl(m3u8Url)
-                    tvModel.setReady()
+                    if (!tvModel.playSuccess) {
+                        tvModel.setVideoUrl(m3u8Url)
+                        tvModel.tv.uris = listOf(m3u8Url)
+                        tvModel.setReady()
+                    }
                 }
             }
         }
