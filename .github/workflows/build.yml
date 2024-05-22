@@ -37,6 +37,14 @@ jobs:
           # override default build-tools version (29.0.3) -- optional
           BUILD_TOOLS_VERSION: "34.0.0"
 
+      - name: Get History
+        id: get_history
+        run: |
+          chmod +x history.sh
+          output=$(./history.sh)
+          trimmed_output=$(echo "$output" | awk '{$1=$1};1')
+          echo "::set-output name=history::$trimmed_output"
+
       - name: Create Release
         id: create_release
         uses: ncipollo/release-action@v1.14.0
@@ -46,7 +54,8 @@ jobs:
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-          allowUpdates: true
+	  allowUpdates: true
+          body: ${{ steps.get_history.outputs.history }}
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1

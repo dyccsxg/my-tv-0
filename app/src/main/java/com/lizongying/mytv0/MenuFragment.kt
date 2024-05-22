@@ -33,10 +33,11 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        val context = requireContext()
         _binding = MenuBinding.inflate(inflater, container, false)
 
         groupAdapter = GroupAdapter(
-            context!!,
+            context,
             binding.group,
             TVList.groupModel,
         )
@@ -53,7 +54,7 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
         tvListModel = TVList.groupModel.getTVListModel(TVList.groupModel.position.value!!)
 
         listAdapter = ListAdapter(
-            context!!,
+            context,
             binding.list,
             tvListModel!!,
         )
@@ -71,16 +72,18 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
     }
 
     fun update() {
-        groupAdapter.update(TVList.groupModel)
+        view?.post {
+            groupAdapter.update(TVList.groupModel)
 
-        var tvListModel = TVList.groupModel.getTVListModel(TVList.groupModel.position.value!!)
-        if (tvListModel == null) {
-            TVList.groupModel.setPosition(0)
-        }
-        tvListModel = TVList.groupModel.getTVListModel(TVList.groupModel.position.value!!)
+            var tvListModel = TVList.groupModel.getTVListModel(TVList.groupModel.position.value!!)
+            if (tvListModel == null) {
+                TVList.groupModel.setPosition(0)
+            }
+            tvListModel = TVList.groupModel.getTVListModel(TVList.groupModel.position.value!!)
 
-        if (tvListModel != null) {
-            (binding.list.adapter as ListAdapter).update(tvListModel)
+            if (tvListModel != null) {
+                (binding.list.adapter as ListAdapter).update(tvListModel)
+            }
         }
     }
 
@@ -117,6 +120,7 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
     }
 
     override fun onItemClicked(tvModel: TVModel) {
+        Log.i(TAG, "onItemClicked ${tvModel.tv.id} ${tvModel.tv.title}")
         TVList.setPosition(tvModel.tv.id)
         (activity as MainActivity).hideMenuFragment()
     }
@@ -147,7 +151,7 @@ class MenuFragment : Fragment(), GroupAdapter.ItemListener, ListAdapter.ItemList
             }
 
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                (activity as MainActivity).hideMenuFragment()
+//                (activity as MainActivity).hideMenuFragment()
                 return true
             }
         }
