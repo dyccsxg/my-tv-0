@@ -54,7 +54,7 @@ jobs:
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-	  allowUpdates: true
+          allowUpdates: true
           body: ${{ steps.get_history.outputs.history }}
 
       - name: Upload Release Asset
