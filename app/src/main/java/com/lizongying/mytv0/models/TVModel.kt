@@ -28,6 +28,8 @@ class TVModel(var tv: TV) : ViewModel() {
     var groupIndex = 0
     var listIndex = 0
 
+    var currentTvUrl = ""
+    var currentTvHeaders : Map<String, String> = mapOf()
     var playSuccess = false
 
     private val _errInfo = MutableLiveData<String>()
@@ -60,6 +62,20 @@ class TVModel(var tv: TV) : ViewModel() {
         }
 
         return tv.uris[_videoIndex.value!!]
+    }
+
+    private fun getTvUrl(): String? {
+        if (retryTimes < 1 && currentTvUrl.isNotBlank()) {
+            return currentTvUrl
+        }
+        return getVideoUrl()
+    }
+
+    private fun getTvHeaders(): Map<String, String>? {
+        if (retryTimes < 1 && currentTvUrl.isNotBlank()) {
+            return currentTvHeaders
+        }
+        return tv.headers
     }
 
     private val _like = MutableLiveData<Boolean>()
@@ -96,7 +112,7 @@ class TVModel(var tv: TV) : ViewModel() {
 
     @OptIn(UnstableApi::class)
     fun buildSource(): MediaSource? {
-        val url = getVideoUrl() ?: return null
+        val url = getTvUrl() ?: return null
         val uri = Uri.parse(url) ?: return null
         val path = uri.path ?: return null
         val scheme = uri.scheme ?: return null
@@ -105,7 +121,8 @@ class TVModel(var tv: TV) : ViewModel() {
         val httpDataSource = DefaultHttpDataSource.Factory()
         httpDataSource.setKeepPostFor302Redirects(true)
         httpDataSource.setAllowCrossProtocolRedirects(true)
-        tv.headers?.let {
+        val tvHeaders = getTvHeaders()
+        tvHeaders?.let {
             httpDataSource.setDefaultRequestProperties(it)
             it.forEach { (key, value) ->
                 if (key.equals("user-agent", ignoreCase = true)) {

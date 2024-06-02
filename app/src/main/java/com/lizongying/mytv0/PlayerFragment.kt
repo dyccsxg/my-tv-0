@@ -30,7 +30,6 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import com.google.android.exoplayer2.Player.DISCONTINUITY_REASON_PERIOD_TRANSITION
 import com.google.android.exoplayer2.SimpleExoPlayer
 import com.lizongying.mytv0.databinding.PlayerBinding
-import com.lizongying.mytv0.models.TVList
 import com.lizongying.mytv0.models.TVModel
 
 
@@ -136,12 +135,14 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
                             super.onPlayerError(error)
                             Log.i(TAG, "播放错误")
                             tvModel?.setErrInfo("播放错误")
-                            // tvModel?.setReady()
-                            TVList.setPosition(SP.position)
+                            tvModel?.retryTimes = (tvModel?.retryTimes?:0) + 1
+                            tvModel?.playSuccess = false
+                            tvModel?.setReady()
                         }
 
                         override fun onRenderedFirstFrame() {
                             super.onRenderedFirstFrame()
+                            tvModel?.retryTimes = 0
                             tvModel?.playSuccess = true
                         }
                     })

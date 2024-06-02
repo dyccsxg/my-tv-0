@@ -10,9 +10,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.charset.StandardCharsets
+import java.util.regex.Pattern
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
-import java.util.regex.Pattern
 import javax.crypto.spec.SecretKeySpec
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -37,7 +37,7 @@ class CustomTVList {
         "CCTV1" to "[^\"]*/cctv1\\-[0-9]*.m3u8",
         "CCTV3" to "[^\"]*/cctv3\\-[0-9]*.m3u8",
         "CCTV6" to "[^\"]*/cctv6\\-[0-9]*.m3u8",
-        "CCTV8" to "[^\"]*/cctv8\\-[0-9]*.m3u8",
+        "CCTV8" to "[^\"]*/cq/cctv8.m3u8",
         "CCTV9" to "[^\"]*/cq/cctv9.m3u8",
         "CCTV10" to "[^\"]*/cctv10\\-[0-9]*.m3u8",
         "CCTV17" to "[^\"]*/cctv17\\-[0-9]*.m3u8")
@@ -84,54 +84,55 @@ class CustomTVList {
     /**
      * 刷新 CF 直播源 token
      */
-    fun refreshToken(tvModel: TVModel): String {
+    fun refreshToken(tvModel: TVModel): Pair<String, Map<String, String>> {
         var m3u8Url = ""
+        var headers : Map<String, String> = mapOf()
         try {
             val title = tvModel.tv.title
             val regex = regexMap[title]
             if (regex.isNullOrBlank()) {
-                return m3u8Url
+                return Pair(m3u8Url, headers)
             }
 
             val client = okhttp3.OkHttpClient()
             val request = okhttp3.Request.Builder().url("$CF_BASE_URL/ds/").build()
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
-                return m3u8Url
+                return Pair(m3u8Url, headers)
             }
             val body = response.body()!!.string()
             val pattern = Pattern.compile("\"($regex)\"")
             val matcher = pattern.matcher(body)
             if (!matcher.find()) {
-                return m3u8Url
+                return Pair(m3u8Url, headers)
             }
             var playerUrl = matcher.group(1) ?: ""
             if (playerUrl.isEmpty()) {
-                return m3u8Url
+                return Pair(m3u8Url, headers)
             }
             playerUrl = CF_BASE_URL + playerUrl
 
             val request2 = okhttp3.Request.Builder().url(playerUrl).build()
             val response2 = client.newCall(request2).execute()
             if (!response2.isSuccessful) {
-                return m3u8Url
+                return Pair(m3u8Url, headers)
             }
             val body2 = response2.body()!!.string()
             val pattern2 = Pattern.compile("['\"](.*.m3u8.*)['\"]")
             val matcher2 = pattern2.matcher(body2)
             if (!matcher2.find()) {
-                return m3u8Url
+                return Pair(m3u8Url, headers)
             }
             m3u8Url = matcher2.group(1) ?: ""
             if (!m3u8Url.matches(Regex("^https?://.*"))) {
                 m3u8Url = CF_BASE_URL + m3u8Url
             }
-            tvModel.tv.headers = mapOf("Origin" to CF_BASE_URL, "Referer" to playerUrl)
+            headers = mapOf("Origin" to CF_BASE_URL, "Referer" to playerUrl)
         } catch (e: Exception) {
             Log.e(TAG, "load cf channels error $e")
             "长风直播源 获取失败".showToast()
         }
-        return m3u8Url
+        return Pair(m3u8Url, headers)
     }
 
     /**

@@ -294,14 +294,14 @@ object TVList {
         val tvModel = getTVModel(position)
 
         // set a new position or retry when position same
+        tvModel.playSuccess = false
         CoroutineScope(Dispatchers.IO).launch {
-            tvModel.playSuccess = false
-            val m3u8Url = customTVList.refreshToken(tvModel)
-            if (m3u8Url.isNotBlank()) {
+            val newTvInfo = customTVList.refreshToken(tvModel)
+            if (newTvInfo.first.isNotBlank()) {
                 withContext(Dispatchers.Main) {
                     if (!tvModel.playSuccess) {
-                        tvModel.setVideoUrl(m3u8Url)
-                        tvModel.tv.uris = listOf(m3u8Url)
+                        tvModel.currentTvUrl = newTvInfo.first;
+                        tvModel.currentTvHeaders = newTvInfo.second
                         tvModel.setReady()
                     }
                 }
