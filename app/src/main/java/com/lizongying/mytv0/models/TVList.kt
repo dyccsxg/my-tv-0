@@ -294,6 +294,7 @@ object TVList {
         val tvModel = getTVModel(position)
 
         // set a new position or retry when position same
+        tvModel.retryTimes = 0
         tvModel.playSuccess = false
         CoroutineScope(Dispatchers.IO).launch {
             val newTvInfo = customTVList.refreshToken(tvModel)

@@ -8,12 +8,21 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody
 import java.io.File
 import java.nio.charset.StandardCharsets
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.regex.Pattern
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -22,6 +31,7 @@ class CustomTVList {
         const val TAG = "CustomTVList"
         const val DEFAULT_SERVER_URL = "https://gitee.com/usm/notes/raw/master/tv/default.json"
         const val SXBC_GET_URL = "http://toutiao.cnwest.com/static/v1/group/stream.js"
+        const val M1950_GET_URL = "https://profile.m1905.com/mvod/liveinfo.php"
         const val TC_TV1_GET_URL = "https://www.tcrbs.com/tvradio/tczhpd.html"
         const val TC_TV2_GET_URL = "https://www.tcrbs.com/tvradio/tcggpd.html"
         const val TV189_CCTV6_GET_URL = "https://h5.nty.tv189.com/bff/apis/user/authPlayLive?contentId=C8000000000000000001703664302519"
@@ -49,6 +59,7 @@ class CustomTVList {
         CoroutineScope(Dispatchers.IO).launch {
             val customTvList = mutableListOf<TV>()
             loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
+            // load1950(customTvList)
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
             loadSxbc(customTvList)
@@ -71,6 +82,7 @@ class CustomTVList {
         CoroutineScope(Dispatchers.IO).launch {
             val customTvList = mutableListOf<TV>()
             loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
+            // load1950(customTvList)
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
             loadSxbc(customTvList)
@@ -94,7 +106,7 @@ class CustomTVList {
                 return Pair(m3u8Url, headers)
             }
 
-            val client = okhttp3.OkHttpClient()
+            val client = getHttpClient()
             val request = okhttp3.Request.Builder().url("$CF_BASE_URL/ds/").build()
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
@@ -133,6 +145,223 @@ class CustomTVList {
             "长风直播源 获取失败".showToast()
         }
         return Pair(m3u8Url, headers)
+    }
+
+    /**
+     * 加载 天翼超高清 资源
+     */
+    private fun loadTv189(title: String, url: String, customTvList: MutableList<TV>) {
+        try {
+            val client = getHttpClient()
+            val headers = okhttp3.Headers.Builder().add("Referer", "https://h5.nty.tv189.com/").build()
+            val request = okhttp3.Request.Builder().url(url).headers(headers).build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return
+            }
+            val body = response.body()!!.string()
+
+            var m3u8Url = ""
+            val pattern = Pattern.compile("(https?://.*m3u8.*)['\"]")
+            val matcher = pattern.matcher(body)
+            if (matcher.find()) {
+                m3u8Url = matcher.group(1) ?: ""
+            }
+            if (m3u8Url.isEmpty()) {
+                return
+            }
+            val tv = TV(0, "", title,
+                "",
+                CCTV6_LOGO,
+                "",
+                listOf(m3u8Url),
+                mapOf("Origin" to "https://h5.nty.tv189.com", "Referer" to "https://h5.nty.tv189.com/"),
+                "看央视",
+                listOf())
+            customTvList.add(tv)
+        } catch (e: Exception) {
+            Log.e(TAG, "load tv189 channels error $e")
+            "天翼超高清 获取失败".showToast()
+        }
+    }
+
+    /**
+     * 加载 1950 电影网
+     */
+    private fun load1950(customTvList: MutableList<TV>) {
+        try {
+            val reqParams = mutableMapOf(
+                "cid" to 999998,
+                "streamname" to "LIVE8J4LTCXPI7QJ5",
+                "uuid" to "bae0d292-1fcc-448d-99d5-9d338dd973fd",
+                "playerid" to "907964286398263",
+                "nonce" to System.currentTimeMillis()/1000,
+                "expiretime" to System.currentTimeMillis()/1000 + 21600,
+                "page" to "https://www.1905.com/1905tv/live/",
+                "appid" to "GEalPdWA",
+            )
+            val jsonBody = com.google.gson.Gson().toJson(reqParams)
+            val reqBody = RequestBody.create(okhttp3.MediaType.parse("application/json"), jsonBody)
+
+            val client = getHttpClient()
+            val headers = okhttp3.Headers.Builder()
+                .add("Content-Type", "application/json")
+                .add("Referer", "https://www.1905.com/")
+                .build()
+            val request = okhttp3.Request.Builder().url(M1950_GET_URL).headers(headers).post(reqBody).build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return
+            }
+            val body = response.body()!!.string()
+            if (body.isNullOrBlank()) {
+                return
+            }
+
+            val mapType = object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type
+            val respMap: Map<String, Any> = com.google.gson.Gson().fromJson(body, mapType)
+            val statusCode = respMap["StatusCode"].toString().toDouble().toInt()
+            if (statusCode != 200) {
+                return
+            }
+
+            val host = getJsonProperty(respMap, "data.quality.hd.host")
+            val path = getJsonProperty(respMap, "data.path.hd.path")
+            val sign = getJsonProperty(respMap, "data.sign.hd.sign")
+            if (host.isEmpty() || path.isEmpty() || sign.isEmpty()) {
+                return
+            }
+            val m3u8Url = host + path + sign
+            val tv = TV(0, "", "1950电影",
+                "",
+                "https://gitee.com/usm/notes/raw/master/tv/logo/1950.png",
+                "",
+                listOf(m3u8Url),
+                mapOf("Origin" to "https://www.1905.com", "Referer" to "https://www.1905.com/1905tv/live/"),
+                "看央视",
+                listOf())
+            customTvList.add(tv)
+        } catch (e: Exception) {
+            Log.e(TAG, "load 1950 movie channels error $e")
+            "1950电影网 获取失败".showToast()
+        }
+    }
+
+    /**
+     * 加载 铜川电视台
+     */
+    private fun loadTctv(title: String, url: String, customTvList: MutableList<TV>) {
+        try {
+            val client = getHttpClient()
+            val headers = okhttp3.Headers.Builder().add("Referer", "https://www.tcrbs.com/").build()
+            val request = okhttp3.Request.Builder().url(url).headers(headers).build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return
+            }
+            val body = response.body()!!.string()
+
+            var m3u8Url = ""
+            val pattern = Pattern.compile("(https?://.*auth_key=.*)['\"]")
+            val matcher = pattern.matcher(body)
+            if (matcher.find()) {
+                m3u8Url = matcher.group(1) ?: ""
+            }
+            if (m3u8Url.isEmpty()) {
+                return
+            }
+            val tv = TV(0, "", title,
+                "",
+                "https://gitee.com/usm/notes/raw/master/tv/logo/tctv.png",
+                "",
+                listOf(m3u8Url),
+                mapOf("Origin" to "https://www.tcrbs.com", "Referer" to "https://www.tcrbs.com/"),
+                "看铜川",
+                listOf())
+            customTvList.add(tv)
+        } catch (e: Exception) {
+            Log.e(TAG, "load tctv channels error $e")
+            "铜川电视台 获取失败".showToast()
+        }
+    }
+
+    /**
+     * 加载 陕西网络广播电视台
+     */
+    private fun loadSxbc(customTvList: MutableList<TV>) {
+        try {
+            val client = getHttpClient()
+            val headers = okhttp3.Headers.Builder().add("Referer", "http://live.snrtv.com/").build()
+            val request = okhttp3.Request.Builder().url(SXBC_GET_URL).headers(headers).build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return
+            }
+            val body = response.body()!!.string()
+            val jsonStr = decryptText(body)
+            if (jsonStr.isEmpty()) {
+                return
+            }
+
+            val mapType = object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type
+            val tvMap: Map<String, Any> = com.google.gson.Gson().fromJson(jsonStr, mapType)
+            val sxbcMap = tvMap["sxbc"] as Map<String, Any>
+            for ((_, value) in sxbcMap) {
+                val tvObj = value as Map<String, String>
+                val title = tvObj["name"]
+                val m3u8 = tvObj["m3u8"]
+                if (m3u8.isNullOrEmpty() || title.isNullOrEmpty()
+                    || title.contains("备用") || title.contains("购物")
+                    || title.contains("移动") || title.contains("体育")) {
+                    continue
+                }
+
+                val tv = TV(0, "", title,
+                    "",
+                    "https://gitee.com/usm/notes/raw/master/tv/logo/shanxi.png",
+                    "",
+                    listOf(m3u8),
+                    mapOf("Origin" to "http://live.snrtv.com", "Referer" to "http://live.snrtv.com/"),
+                    "看陝西",
+                    listOf())
+                customTvList.add(tv)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "load sxbc channels error $e")
+            "陕西网络广播电视台 获取失败".showToast()
+        }
+    }
+
+    /**
+     * 自动加载默认频道
+     */
+    private fun loadDefaultChannels(defaultTvList: MutableList<TV>) {
+        try {
+            val client = getHttpClient()
+            val request = okhttp3.Request.Builder().url(DEFAULT_SERVER_URL).build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return
+            }
+            val body = response.body()!!.string()
+            if (body.isNullOrEmpty()) {
+                return
+            }
+
+            val type = object : com.google.gson.reflect.TypeToken<List<TV>>() {}.type
+            val newTvList: MutableList<TV> = com.google.gson.Gson().fromJson(body, type)
+            defaultTvList.addAll(newTvList)
+
+            // 保存频道
+            val file = File(TVList.appDirectory, TVList.FILE_NAME)
+            if (!file.exists()) {
+                file.createNewFile()
+            }
+            file.writeText(body)
+        } catch (e: Exception) {
+            Log.e(TAG, "load default channels error $e")
+            "预置频道 更新失败".showToast()
+        }
     }
 
     /**
@@ -179,161 +408,6 @@ class CustomTVList {
         }
     }
 
-    /**
-     * 加载 陕西网络广播电视台
-     */
-    private fun loadSxbc(customTvList: MutableList<TV>) {
-        try {
-            val client = okhttp3.OkHttpClient()
-            val headers = okhttp3.Headers.Builder().add("Referer", "http://live.snrtv.com/").build()
-            val request = okhttp3.Request.Builder().url(SXBC_GET_URL).headers(headers).build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return
-            }
-            val body = response.body()!!.string()
-            val jsonStr = decryptText(body)
-            if (jsonStr.isEmpty()) {
-                return
-            }
-
-            val mapType = object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type
-            val tvMap: Map<String, Any> = com.google.gson.Gson().fromJson(jsonStr, mapType)
-            val sxbcMap = tvMap["sxbc"] as Map<String, Any>
-            for ((_, value) in sxbcMap) {
-                val tvObj = value as Map<String, String>
-                val title = tvObj["name"]
-                val m3u8 = tvObj["m3u8"]
-                if (m3u8.isNullOrEmpty() || title.isNullOrEmpty()
-                    || title.contains("备用") || title.contains("购物")
-                    || title.contains("移动") || title.contains("体育")) {
-                    continue
-                }
-
-                val tv = TV(0, "", title,
-                    "",
-                    "https://gitee.com/usm/notes/raw/master/tv/logo/shanxi.png",
-                    "",
-                    listOf(m3u8),
-                    mapOf("Origin" to "http://live.snrtv.com", "Referer" to "http://live.snrtv.com/"),
-                    "看陝西",
-                    listOf())
-                customTvList.add(tv)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "load sxbc channels error $e")
-            "陕西网络广播电视台 获取失败".showToast()
-        }
-    }
-
-    /**
-     * 加载 铜川电视台
-     */
-    private fun loadTctv(title: String, url: String, customTvList: MutableList<TV>) {
-        try {
-            val client = okhttp3.OkHttpClient()
-            val headers = okhttp3.Headers.Builder().add("Referer", "https://www.tcrbs.com/").build()
-            val request = okhttp3.Request.Builder().url(url).headers(headers).build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return
-            }
-            val body = response.body()!!.string()
-
-            var m3u8Url = ""
-            val pattern = Pattern.compile("(https?://.*auth_key=.*)['\"]")
-            val matcher = pattern.matcher(body)
-            if (matcher.find()) {
-                m3u8Url = matcher.group(1) ?: ""
-            }
-            if (m3u8Url.isEmpty()) {
-                return
-            }
-            val tv = TV(0, "", title,
-                "",
-                "https://gitee.com/usm/notes/raw/master/tv/logo/tctv.png",
-                "",
-                listOf(m3u8Url),
-                mapOf("Origin" to "https://www.tcrbs.com", "Referer" to "https://www.tcrbs.com/"),
-                "看铜川",
-                listOf())
-            customTvList.add(tv)
-        } catch (e: Exception) {
-            Log.e(TAG, "load tctv channels error $e")
-            "铜川电视台 获取失败".showToast()
-        }
-    }
-
-    /**
-     * 加载 天翼超高清 资源
-     */
-    private fun loadTv189(title: String, url: String, customTvList: MutableList<TV>) {
-        try {
-            val client = okhttp3.OkHttpClient()
-            val headers = okhttp3.Headers.Builder().add("Referer", "https://h5.nty.tv189.com/").build()
-            val request = okhttp3.Request.Builder().url(url).headers(headers).build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return
-            }
-            val body = response.body()!!.string()
-
-            var m3u8Url = ""
-            val pattern = Pattern.compile("(https?://.*m3u8.*)['\"]")
-            val matcher = pattern.matcher(body)
-            if (matcher.find()) {
-                m3u8Url = matcher.group(1) ?: ""
-            }
-            if (m3u8Url.isEmpty()) {
-                return
-            }
-            val tv = TV(0, "", title,
-                "",
-                CCTV6_LOGO,
-                "",
-                listOf(m3u8Url),
-                mapOf("Origin" to "https://h5.nty.tv189.com", "Referer" to "https://h5.nty.tv189.com/"),
-                "看央视",
-                listOf())
-            customTvList.add(tv)
-        } catch (e: Exception) {
-            Log.e(TAG, "load tv189 channels error $e")
-            "天翼超高清 获取失败".showToast()
-        }
-    }
-
-    /**
-     * 自动加载默认频道
-     */
-    private fun loadDefaultChannels(defaultTvList: MutableList<TV>) {
-        try {
-            val client = okhttp3.OkHttpClient()
-            val request = okhttp3.Request.Builder().url(DEFAULT_SERVER_URL).build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return
-            }
-            val body = response.body()!!.string()
-            if (body.isNullOrEmpty()) {
-                return
-            }
-
-            val type = object : com.google.gson.reflect.TypeToken<List<TV>>() {}.type
-            val newTvList: MutableList<TV> = com.google.gson.Gson().fromJson(body, type)
-            defaultTvList.addAll(newTvList)
-
-            // 保存频道
-            val file = File(TVList.appDirectory, TVList.FILE_NAME)
-            if (!file.exists()) {
-                file.createNewFile()
-            }
-            file.writeText(body)
-        } catch (e: Exception) {
-            Log.e(TAG, "load default channels error $e")
-            "预置频道 更新失败".showToast()
-        }
-    }
-
     private fun updateTvUri(newTvList: MutableList<TV>) {
         if (newTvList.isEmpty()) {
             return
@@ -352,7 +426,7 @@ class CustomTVList {
                 val title = m.tv.title
                 val oldUri = m.videoUrl.value
                 val newUri = map[title]?.uris?.get(0) ?: ""
-                if (newUri.isBlank() || newUri == oldUri || regexMap.containsKey(title)) {
+                if (newUri.isBlank() || newUri == oldUri) {
                     continue
                 }
 
@@ -370,12 +444,6 @@ class CustomTVList {
         } catch (e: Exception) {
             Log.e(TAG, "Refresh tv uri failed $e")
             "頻道地址 更新失败".showToast()
-        }
-    }
-
-    private fun startPlay() {
-        if (!TVList.setPosition(SP.position)) {
-            TVList.setPosition(0)
         }
     }
 
@@ -410,5 +478,61 @@ class CustomTVList {
         val jsonStr = String(decryptedBytes, StandardCharsets.UTF_8).trim()
         val lastIdx = jsonStr.lastIndexOf('}')
         return jsonStr.substring(0, lastIdx + 1)
+    }
+
+    private fun getJsonProperty(jsonMap: Map<String, Any>, keyStr: String): String {
+        var retVal = ""
+        var jsonObj = jsonMap
+        val keyArray = keyStr.split("\\.")
+        for (idx in keyArray.indices) {
+            val key = keyArray[idx]
+            if (!jsonObj.containsKey(key)) {
+                break
+            }
+
+            if (idx < keyArray.size - 1) {
+                jsonObj = jsonObj[key] as Map<String, Any>
+            } else {
+                retVal = jsonObj[key] as String
+            }
+        }
+        return retVal
+    }
+
+    private fun getHttpClient(): OkHttpClient {
+        val trustManager = getTrustManager()
+        return OkHttpClient().newBuilder()
+            .sslSocketFactory(getSSLSocketFactory(trustManager), trustManager)
+            .hostnameVerifier(getHostnameVerifier())
+            .build()
+    }
+    private fun getTrustManager(): X509TrustManager {
+        return object: X509TrustManager {
+            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+            }
+
+            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+            }
+
+            override fun getAcceptedIssuers(): Array<X509Certificate> {
+                return arrayOf()
+            }
+        }
+    }
+
+    private fun getSSLSocketFactory(trustManager: TrustManager): SSLSocketFactory {
+        val sslContext = SSLContext.getInstance("SSL")
+        sslContext.init(null, arrayOf(trustManager), SecureRandom())
+        return sslContext.socketFactory
+    }
+
+    private fun getHostnameVerifier(): HostnameVerifier {
+        return HostnameVerifier { hostname, session -> true }
+    }
+
+    private fun startPlay() {
+        if (!TVList.setPosition(SP.position)) {
+            TVList.setPosition(0)
+        }
     }
 }
