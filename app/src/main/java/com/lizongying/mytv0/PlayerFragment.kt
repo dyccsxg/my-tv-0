@@ -158,7 +158,7 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
 
     @OptIn(UnstableApi::class)
     fun play(tvModel: TVModel) {
-        videoUrl = tvModel.videoUrl.value ?: return
+        videoUrl = tvModel.getTvUrl() ?: return
         this.tvModel = tvModel
         Log.i(TAG, "play ${tvModel.tv.title} $videoUrl")
         player?.run {

@@ -103,6 +103,7 @@ class CustomTVList {
         var m3u8Url = ""
         var headers : Map<String, String> = mapOf()
         try {
+            Thread.sleep(1500L)
             val title = tvModel.tv.title
             val regex = regexMap[title]
             if (regex.isNullOrBlank()) {

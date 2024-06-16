@@ -489,6 +489,7 @@ class MainActivity : FragmentActivity() {
 
         if (doubleBackToExitPressedOnce) {
             super.onBackPressed()
+            android.os.Process.killProcess(android.os.Process.myPid())
             return
         }
 

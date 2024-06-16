@@ -285,7 +285,6 @@ object TVList {
         if (position >= size()) {
             return false
         }
-        Log.i(TAG, "setPosition $position/${size()} ${getTVModel(position).tv.title} ${getTVModel(position).like.value}")
 
         if (_position.value != position) {
             _position.value = position

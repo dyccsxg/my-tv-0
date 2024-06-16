@@ -64,15 +64,15 @@ class TVModel(var tv: TV) : ViewModel() {
         return tv.uris[_videoIndex.value!!]
     }
 
-    private fun getTvUrl(): String? {
-        if (retryTimes < 2 && currentTvUrl.isNotBlank()) {
+    fun getTvUrl(): String? {
+        if ((retryTimes % 2 == 0) && currentTvUrl.isNotBlank()) {
             return currentTvUrl
         }
         return getVideoUrl()
     }
 
     private fun getTvHeaders(): Map<String, String>? {
-        if (retryTimes < 2 && currentTvUrl.isNotBlank()) {
+        if ((retryTimes % 2 == 0) && currentTvUrl.isNotBlank()) {
             return currentTvHeaders
         }
         return tv.headers
