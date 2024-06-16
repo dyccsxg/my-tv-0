@@ -91,6 +91,8 @@ class MainActivity : FragmentActivity() {
                         View.SYSTEM_UI_FLAG_IMMERSIVE
         }
 
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         setContentView(R.layout.activity_main)
 
         if (savedInstanceState == null) {
@@ -242,6 +244,10 @@ class MainActivity : FragmentActivity() {
         override fun onDoubleTap(e: MotionEvent): Boolean {
             showSetting()
             return true
+        }
+
+        override fun onLongPress(e: MotionEvent) {
+            Log.i(TAG, "onLongPress")
         }
 
         override fun onFling(
