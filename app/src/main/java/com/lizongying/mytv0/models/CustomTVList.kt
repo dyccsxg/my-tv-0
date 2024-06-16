@@ -11,7 +11,9 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
 import java.io.File
+import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.regex.Pattern
@@ -32,6 +34,7 @@ class CustomTVList {
         const val DEFAULT_SERVER_URL = "https://gitee.com/usm/notes/raw/master/tv/default.json"
         const val SXBC_GET_URL = "http://toutiao.cnwest.com/static/v1/group/stream.js"
         const val M1950_GET_URL = "https://profile.m1905.com/mvod/liveinfo.php"
+        const val M1950_AK = "THPQjp5zq5RcW0hUwz8D"
         const val TC_TV1_GET_URL = "https://www.tcrbs.com/tvradio/tczhpd.html"
         const val TC_TV2_GET_URL = "https://www.tcrbs.com/tvradio/tcggpd.html"
         const val TV189_CCTV6_GET_URL = "https://h5.nty.tv189.com/bff/apis/user/authPlayLive?contentId=C8000000000000000001703664302519"
@@ -59,7 +62,7 @@ class CustomTVList {
         CoroutineScope(Dispatchers.IO).launch {
             val customTvList = mutableListOf<TV>()
             loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
-            // load1950(customTvList)
+            load1950(customTvList)
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
             loadSxbc(customTvList)
@@ -82,7 +85,7 @@ class CustomTVList {
         CoroutineScope(Dispatchers.IO).launch {
             val customTvList = mutableListOf<TV>()
             loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
-            // load1950(customTvList)
+            load1950(customTvList)
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
             loadSxbc(customTvList)
@@ -191,22 +194,25 @@ class CustomTVList {
     private fun load1950(customTvList: MutableList<TV>) {
         try {
             val reqParams = mutableMapOf(
-                "cid" to 999998,
-                "streamname" to "LIVE8J4LTCXPI7QJ5",
-                "uuid" to "bae0d292-1fcc-448d-99d5-9d338dd973fd",
-                "playerid" to "907964286398263",
+                "cid" to 999994,
+                "streamname" to "LIVENCOI8M4RGOOJ9",
+                "uuid" to "02d761af-25be-4745-af1d-4e24fcc1b861",
+                "playerid" to "969474391143086",
                 "nonce" to System.currentTimeMillis()/1000,
-                "expiretime" to System.currentTimeMillis()/1000 + 21600,
-                "page" to "https://www.1905.com/1905tv/live/",
+                "expiretime" to System.currentTimeMillis()/1000 + 600,
+                "page" to "https://www.1905.com/xl/live/",
                 "appid" to "GEalPdWA",
             )
+            val authorization = calcSignature(reqParams)
             val jsonBody = com.google.gson.Gson().toJson(reqParams)
             val reqBody = RequestBody.create(okhttp3.MediaType.parse("application/json"), jsonBody)
 
             val client = getHttpClient()
             val headers = okhttp3.Headers.Builder()
                 .add("Content-Type", "application/json")
+                .add("Origin", "https://www.1905.com")
                 .add("Referer", "https://www.1905.com/")
+                .add("Authorization", authorization)
                 .build()
             val request = okhttp3.Request.Builder().url(M1950_GET_URL).headers(headers).post(reqBody).build()
             val response = client.newCall(request).execute()
@@ -237,7 +243,7 @@ class CustomTVList {
                 "https://gitee.com/usm/notes/raw/master/tv/logo/1950.png",
                 "",
                 listOf(m3u8Url),
-                mapOf("Origin" to "https://www.1905.com", "Referer" to "https://www.1905.com/1905tv/live/"),
+                mapOf("Origin" to "https://www.1905.com", "Referer" to "https://www.1905.com/xl/live/"),
                 "看央视",
                 listOf())
             customTvList.add(tv)
@@ -480,10 +486,44 @@ class CustomTVList {
         return jsonStr.substring(0, lastIdx + 1)
     }
 
+    private fun calcSignature(bodyMap: Map<String, Any>): String {
+        val appIdHash = calcSHA1(M1950_AK, bodyMap["appid"].toString())
+        val sortedKey = bodyMap.keys.sorted()
+        val textBuff = StringBuffer()
+        for (propKey in sortedKey) {
+            if (propKey == "appid") {
+                continue
+            }
+            if (textBuff.isNotEmpty()) {
+                textBuff.append("&")
+            }
+            val propVal = URLEncoder.encode(bodyMap[propKey].toString(), "UTF-8")
+            textBuff.append(propKey).append("=").append(propVal)
+        }
+        textBuff.append(".").append(appIdHash)
+
+        val digest = MessageDigest.getInstance("SHA-1")
+        val hash = digest.digest(textBuff.toString().toByteArray())
+        return hash.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun calcSHA1(accessKey: String, appId: String): String {
+        var text = ""
+        val sortedAccessKey = accessKey.toCharArray().sorted().joinToString("")
+        for ( idx in accessKey.indices) {
+            text += accessKey[idx] + "=" + sortedAccessKey[idx] + "&"
+        }
+        text += appId
+
+        val digest = MessageDigest.getInstance("SHA-1")
+        val hash = digest.digest(text.toByteArray())
+        return hash.joinToString("") { "%02x".format(it) }
+    }
+
     private fun getJsonProperty(jsonMap: Map<String, Any>, keyStr: String): String {
         var retVal = ""
         var jsonObj = jsonMap
-        val keyArray = keyStr.split("\\.")
+        val keyArray = keyStr.split(".")
         for (idx in keyArray.indices) {
             val key = keyArray[idx]
             if (!jsonObj.containsKey(key)) {
