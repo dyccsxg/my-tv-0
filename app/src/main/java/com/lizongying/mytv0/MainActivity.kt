@@ -686,11 +686,6 @@ class MainActivity : FragmentActivity() {
         server?.stop()
     }
 
-    override fun onResume() {
-        super.onResume()
-        customTVList.updateTvUri()
-    }
-
     companion object {
         private const val TAG = "MainActivity"
         private lateinit var instance: MainActivity
