@@ -54,6 +54,24 @@ class CustomTVList {
         "CCTV9" to "[^\"]*/cq/cctv9.m3u8",
         "CCTV10" to "[^\"]*/cctv10\\-[0-9]*.m3u8",
         "CCTV17" to "[^\"]*/cctv17\\-[0-9]*.m3u8")
+    private val m1950CCTV6 = mapOf(
+        "title" to "1950电影频道",
+        "cid" to "999999",
+        "streamname" to "LIVEI56PNI726KA7A",
+        "uuid" to "6c9e124e-26f3-49d4-af14-50b5f8303402",
+        "playerid" to "587422994314341",
+        "page" to "https://www.1905.com/cctv6/live/",
+        "appid" to "GEalPdWA"
+    )
+    private val m1950XL = mapOf(
+        "title" to "1950高清影院",
+        "cid" to 999994,
+        "streamname" to "LIVENCOI8M4RGOOJ9",
+        "uuid" to "02d761af-25be-4745-af1d-4e24fcc1b861",
+        "playerid" to "969474391143086",
+        "page" to "https://www.1905.com/xl/live/",
+        "appid" to "GEalPdWA"
+    )
 
     /**
      * 加载自定义电视频道
@@ -62,7 +80,8 @@ class CustomTVList {
         CoroutineScope(Dispatchers.IO).launch {
             val customTvList = mutableListOf<TV>()
             loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
-            load1950(customTvList)
+            load1950(m1950CCTV6, customTvList)
+            load1950(m1950XL, customTvList)
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
             loadSxbc(customTvList)
@@ -85,7 +104,8 @@ class CustomTVList {
         CoroutineScope(Dispatchers.IO).launch {
             val customTvList = mutableListOf<TV>()
             loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
-            load1950(customTvList)
+            load1950(m1950CCTV6, customTvList)
+            load1950(m1950XL, customTvList)
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
             loadSxbc(customTvList)
@@ -192,17 +212,17 @@ class CustomTVList {
     /**
      * 加载 1950 电影网
      */
-    private fun load1950(customTvList: MutableList<TV>) {
+    private fun load1950(tvConfig: Map<String, Any>, customTvList: MutableList<TV>) {
         try {
-            val reqParams = mutableMapOf(
-                "cid" to 999994,
-                "streamname" to "LIVENCOI8M4RGOOJ9",
-                "uuid" to "02d761af-25be-4745-af1d-4e24fcc1b861",
-                "playerid" to "969474391143086",
+            val reqParams = mapOf(
+                "cid" to tvConfig["cid"]!!,
+                "streamname" to tvConfig["streamname"]!!,
+                "uuid" to tvConfig["uuid"]!!,
+                "playerid" to tvConfig["playerid"]!!,
                 "nonce" to System.currentTimeMillis()/1000,
                 "expiretime" to System.currentTimeMillis()/1000 + 600,
-                "page" to "https://www.1905.com/xl/live/",
-                "appid" to "GEalPdWA",
+                "page" to tvConfig["page"]!!,
+                "appid" to tvConfig["appid"]!!
             )
             val authorization = calcSignature(reqParams)
             val jsonBody = com.google.gson.Gson().toJson(reqParams)
@@ -239,12 +259,12 @@ class CustomTVList {
                 return
             }
             val m3u8Url = host + path + sign
-            val tv = TV(0, "", "1950电影",
+            val tv = TV(0, "", tvConfig["title"] as String,
                 "",
                 "https://gitee.com/usm/notes/raw/master/tv/logo/1950.png",
                 "",
                 listOf(m3u8Url),
-                mapOf("Origin" to "https://www.1905.com", "Referer" to "https://www.1905.com/xl/live/"),
+                mapOf("Origin" to "https://www.1905.com", "Referer" to tvConfig["page"] as String),
                 "看央视",
                 listOf())
             customTvList.add(tv)
