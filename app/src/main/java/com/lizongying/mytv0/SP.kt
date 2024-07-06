@@ -124,6 +124,6 @@ object SP {
         set(value) = sp.edit().putString(KEY_PROXY, value).apply()
 
     var epg: String?
-        get() = sp.getString(KEY_EPG, "https://live.fanmingming.com/e.xml")
+        get() = sp.getString(KEY_EPG, "") // https://live.fanmingming.com/e.xml
         set(value) = sp.edit().putString(KEY_EPG, value).apply()
 }
