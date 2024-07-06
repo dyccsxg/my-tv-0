@@ -37,6 +37,8 @@ object SP {
 
     private const val KEY_PROXY = "proxy"
 
+    private const val KEY_EPG = "epg"
+
     private lateinit var sp: SharedPreferences
 
     /**
@@ -120,4 +122,8 @@ object SP {
     var proxy: String?
         get() = sp.getString(KEY_PROXY, "")
         set(value) = sp.edit().putString(KEY_PROXY, value).apply()
+
+    var epg: String?
+        get() = sp.getString(KEY_EPG, "https://live.fanmingming.com/e.xml")
+        set(value) = sp.edit().putString(KEY_EPG, value).apply()
 }
