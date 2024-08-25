@@ -45,6 +45,7 @@ class CustomTVList {
         const val CCTV9_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv9.png"
         const val CCTV10_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv10.png"
         const val CCTV17_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv17.png"
+        const val MIGU_PLAY_URL = "https://webapi.miguvideo.com/gateway/playurl/v2/play/playurlh5?clientId=729ecbc3982b4d46b5b888e9b20848de&startPlay=true&devId=aHRqb2lnN3U3NWwxd2JseWeJRBsvtcTie47vXBoML2sn2ig3LwNijUJnx6a5rsEh&xh265=false&channelId=0131_201600010010024&rateType=3&contId="
     }
     private val regexMap = mapOf(
         "CCTV1" to "[^\"]*/cctv1\\-[0-9]*.m3u8",
@@ -72,6 +73,11 @@ class CustomTVList {
         "page" to "https://www.1905.com/xl/live/",
         "appid" to "GEalPdWA"
     )
+    private val miguVideo = arrayOf(
+        arrayOf("CCTV 1", "608807420", "zyyw", CCTV1_LOGO),
+        arrayOf("CCTV 8", "624878356", "zyww", CCTV8_LOGO),
+        arrayOf("CCTV 9", "673168140", "zybw", CCTV9_LOGO)
+    )
 
     /**
      * 加载自定义电视频道
@@ -82,6 +88,9 @@ class CustomTVList {
             loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
             load1950(m1950CCTV6, customTvList)
             load1950(m1950XL, customTvList)
+            loadMiguVideo("CCTV 1", miguVideo[0][1], miguVideo[0][2], miguVideo[0][3], customTvList)
+            loadMiguVideo("CCTV 8", miguVideo[1][1], miguVideo[1][2], miguVideo[1][3], customTvList)
+            loadMiguVideo("CCTV 9", miguVideo[2][1], miguVideo[2][2], miguVideo[2][3], customTvList)
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
             loadSxbc(customTvList)
@@ -271,6 +280,63 @@ class CustomTVList {
         } catch (e: Exception) {
             Log.e(TAG, "load 1950 movie channels error $e")
             "1950电影网 获取失败".showToast()
+        }
+    }
+
+    private fun loadMiguVideo(title: String, contId: String, encryptKey: String, logo: String, customTvList: MutableList<TV>) {
+        try {
+            val fetchPlayUrl = MIGU_PLAY_URL + contId
+            val headers = okhttp3.Headers.Builder()
+                .add("Origin", "https://m.miguvideo.com")
+                .add("Referer", "https://m.miguvideo.com/")
+                .add("appCode", "miguvideo_default_h5")
+                .build()
+            val request = okhttp3.Request.Builder().url(fetchPlayUrl).headers(headers).build()
+
+            val client = getHttpClient()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return
+            }
+            val body = response.body()!!.string()
+            if (body.isNullOrBlank()) {
+                return
+            }
+
+            val mapType = object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type
+            val respMap: Map<String, Any> = com.google.gson.Gson().fromJson(body, mapType)
+            val statusCode = respMap["code"].toString()
+            if (statusCode != "200") {
+                return
+            }
+
+            var fetchM3u8Url = getJsonProperty(respMap, "body.urlInfo.url")
+            if (fetchM3u8Url.isBlank()) {
+                return
+            }
+            val puData = getQueryParamValue(fetchM3u8Url, "puData")
+            val ddCalcu = calcDdCalcu(puData, encryptKey)
+            fetchM3u8Url += "&ddCalcu=$ddCalcu&sv=10000&crossdomain=www&ct=h5"
+            val request2 = okhttp3.Request.Builder().url(fetchM3u8Url).build()
+            val response2 = client.newCall(request2).execute()
+            if (!response2.isSuccessful) {
+                return
+            }
+            val body2 = response2.body()!!.string()
+            if (body2.isNullOrBlank()) {
+                return
+            }
+
+            val m3u8Url = body2.trim()
+            val tv = TV(0, "", title, "", logo, "",
+                listOf(m3u8Url),
+                mapOf("Origin" to "https://m.miguvideo.com", "Referer" to "https://m.miguvideo.com/"),
+                "看央视",
+                listOf())
+            customTvList.add(tv)
+        } catch (e: Exception) {
+            Log.e(TAG, "load migu video channels error $e")
+            "咪咕视频 获取失败".showToast()
         }
     }
 
@@ -539,6 +605,36 @@ class CustomTVList {
         val digest = MessageDigest.getInstance("SHA-1")
         val hash = digest.digest(text.toByteArray())
         return hash.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun calcDdCalcu(puData: String, encryptKey: String): String {
+        var left = 0
+        var right = puData.length - 1
+        var keyIndex = 0
+        var ddCalcu = ""
+
+        while (right > left) {
+            ddCalcu += puData[right].toString() + puData[left].toString()
+            if (left in 1..4) {
+                ddCalcu += encryptKey[keyIndex].toString()
+                keyIndex++
+            }
+            right--
+            left++
+        }
+        return ddCalcu
+    }
+
+    private fun getQueryParamValue(url: String, paramKey: String): String {
+        val startIdx = url.indexOf("$paramKey=")
+        if (startIdx < 0) {
+            return ""
+        }
+        var endIdx = url.indexOf("&", startIdx)
+        if (endIdx < 0) {
+            endIdx = url.length
+        }
+        return url.substring(startIdx + "$paramKey=".length, endIdx)
     }
 
     private fun getJsonProperty(jsonMap: Map<String, Any>, keyStr: String): String {
