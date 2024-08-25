@@ -38,7 +38,6 @@ class CustomTVList {
         const val TC_TV1_GET_URL = "https://www.tcrbs.com/tvradio/tczhpd.html"
         const val TC_TV2_GET_URL = "https://www.tcrbs.com/tvradio/tcggpd.html"
         const val TV189_CCTV6_GET_URL = "https://h5.nty.tv189.com/bff/apis/user/authPlayLive?contentId=C8000000000000000001703664302519"
-        const val CF_BASE_URL = "http://cfss.cc"
         const val CCTV1_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv1.png"
         const val CCTV6_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv6.png"
         const val CCTV8_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv8.png"
@@ -47,14 +46,6 @@ class CustomTVList {
         const val CCTV17_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv17.png"
         const val MIGU_PLAY_URL = "https://webapi.miguvideo.com/gateway/playurl/v2/play/playurlh5?clientId=729ecbc3982b4d46b5b888e9b20848de&startPlay=true&devId=aHRqb2lnN3U3NWwxd2JseWeJRBsvtcTie47vXBoML2sn2ig3LwNijUJnx6a5rsEh&xh265=false&channelId=0131_201600010010024&rateType=3&contId="
     }
-    private val regexMap = mapOf(
-        "CCTV1" to "[^\"]*/cctv1\\-[0-9]*.m3u8",
-        "CCTV3" to "[^\"]*/cctv3\\-[0-9]*.m3u8",
-        "CCTV6" to "[^\"]*/cctv6\\-[0-9]*.m3u8",
-        "CCTV8" to "[^\"]*/cq/cctv8.m3u8",
-        "CCTV9" to "[^\"]*/cq/cctv9.m3u8",
-        "CCTV10" to "[^\"]*/cctv10\\-[0-9]*.m3u8",
-        "CCTV17" to "[^\"]*/cctv17\\-[0-9]*.m3u8")
     private val m1950CCTV6 = mapOf(
         "title" to "1950电影频道",
         "cid" to "999999",
@@ -126,57 +117,11 @@ class CustomTVList {
     }
 
     /**
-     * 刷新 CF 直播源 token
+     * 动态刷新直播源--预留接口, 咱不使用
      */
     fun refreshToken(tvModel: TVModel): Pair<String, Map<String, String>> {
-        var m3u8Url = ""
-        var headers : Map<String, String> = mapOf()
-        try {
-            Thread.sleep(1500L)
-            val title = tvModel.tv.title
-            val regex = regexMap[title]
-            if (regex.isNullOrBlank()) {
-                return Pair(m3u8Url, headers)
-            }
-
-            val client = getHttpClient()
-            val request = okhttp3.Request.Builder().url("$CF_BASE_URL/ds/").build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return Pair(m3u8Url, headers)
-            }
-            val body = response.body()!!.string()
-            val pattern = Pattern.compile("\"($regex)\"")
-            val matcher = pattern.matcher(body)
-            if (!matcher.find()) {
-                return Pair(m3u8Url, headers)
-            }
-            var playerUrl = matcher.group(1) ?: ""
-            if (playerUrl.isEmpty()) {
-                return Pair(m3u8Url, headers)
-            }
-            playerUrl = CF_BASE_URL + playerUrl
-
-            val request2 = okhttp3.Request.Builder().url(playerUrl).build()
-            val response2 = client.newCall(request2).execute()
-            if (!response2.isSuccessful) {
-                return Pair(m3u8Url, headers)
-            }
-            val body2 = response2.body()!!.string()
-            val pattern2 = Pattern.compile("['\"](.*.m3u8.*)['\"]")
-            val matcher2 = pattern2.matcher(body2)
-            if (!matcher2.find()) {
-                return Pair(m3u8Url, headers)
-            }
-            m3u8Url = matcher2.group(1) ?: ""
-            if (!m3u8Url.matches(Regex("^https?://.*"))) {
-                m3u8Url = CF_BASE_URL + m3u8Url
-            }
-            headers = mapOf("Origin" to CF_BASE_URL, "Referer" to playerUrl)
-        } catch (e: Exception) {
-            Log.e(TAG, "load cf channels error $e")
-            "长风直播源 获取失败".showToast()
-        }
+        val m3u8Url = ""
+        val headers : Map<String, String> = mapOf()
         return Pair(m3u8Url, headers)
     }
 
