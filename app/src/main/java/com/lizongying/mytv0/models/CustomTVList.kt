@@ -98,25 +98,6 @@ class CustomTVList {
     }
 
     /**
-     * 更新频道播放地址
-     */
-    fun updateTvUri() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val customTvList = mutableListOf<TV>()
-            loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
-            load1950(m1950CCTV6, customTvList)
-            load1950(m1950XL, customTvList)
-            loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
-            loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
-            loadSxbc(customTvList)
-            loadDefaultChannels(customTvList)
-            withContext(Dispatchers.Main) {
-                updateTvUri(customTvList)
-            }
-        }
-    }
-
-    /**
      * 动态刷新直播源--预留接口, 咱不使用
      */
     fun refreshToken(tvModel: TVModel): Pair<String, Map<String, String>> {
