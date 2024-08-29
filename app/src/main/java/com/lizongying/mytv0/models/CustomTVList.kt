@@ -79,11 +79,26 @@ class CustomTVList {
             loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
             load1950(m1950CCTV6, customTvList)
             load1950(m1950XL, customTvList)
+            withContext(Dispatchers.Main) {
+                appendTvList(customTvList)
+            }
+
+            customTvList.clear()
             loadMiguVideo("CCTV 1", miguVideo[0][1], miguVideo[0][2], miguVideo[0][3], customTvList)
             loadMiguVideo("CCTV 8", miguVideo[1][1], miguVideo[1][2], miguVideo[1][3], customTvList)
             loadMiguVideo("CCTV 9", miguVideo[2][1], miguVideo[2][2], miguVideo[2][3], customTvList)
+            withContext(Dispatchers.Main) {
+                appendTvList(customTvList)
+            }
+
+            customTvList.clear()
             loadTctv("铜川综合", TC_TV1_GET_URL, customTvList)
             loadTctv("铜川公共", TC_TV2_GET_URL, customTvList)
+            withContext(Dispatchers.Main) {
+                appendTvList(customTvList)
+            }
+
+            customTvList.clear()
             loadSxbc(customTvList)
             withContext(Dispatchers.Main) {
                 appendTvList(customTvList)
@@ -257,7 +272,7 @@ class CustomTVList {
             val tv = TV(0, "", title, "", logo, "",
                 listOf(m3u8Url),
                 mapOf("Origin" to "https://m.miguvideo.com", "Referer" to "https://m.miguvideo.com/"),
-                "看央视",
+                "看咪咕",
                 listOf())
             customTvList.add(tv)
         } catch (e: Exception) {
@@ -370,6 +385,7 @@ class CustomTVList {
             val type = object : com.google.gson.reflect.TypeToken<List<TV>>() {}.type
             val newTvList: MutableList<TV> = com.google.gson.Gson().fromJson(body, type)
             defaultTvList.addAll(newTvList)
+            resetCCTV1(newTvList)
 
             // 保存频道
             val file = File(TVList.appDirectory, TVList.FILE_NAME)
@@ -380,6 +396,49 @@ class CustomTVList {
         } catch (e: Exception) {
             Log.e(TAG, "load default channels error $e")
             "预置频道 更新失败".showToast()
+        }
+    }
+
+    /**
+     * 加载 CCTV1
+     */
+    private fun resetCCTV1(tvList: MutableList<TV> ) {
+        try {
+            var cctv1: TV? = null
+            for (v in tvList) {
+                if (v.title == "CCTV-1") {
+                    cctv1 = v
+                    break
+                }
+            }
+            if (cctv1 == null) {
+                return
+            }
+
+            val url = "https://www.xttv.com.cn/index/channel/index/id/155.html"
+            val client = getHttpClient()
+            val headers = okhttp3.Headers.Builder().add("Referer", "https://www.xttv.com.cn/").build()
+            val request = okhttp3.Request.Builder().url(url).headers(headers).build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                return
+            }
+            val body = response.body()!!.string()
+
+            var m3u8Url = ""
+            val pattern = Pattern.compile("(https?://.*auth_key=.*)['\"]")
+            val matcher = pattern.matcher(body)
+            if (matcher.find()) {
+                m3u8Url = matcher.group(1) ?: ""
+            }
+            if (m3u8Url.isEmpty()) {
+                return
+            }
+            cctv1.uris = listOf(m3u8Url)
+            cctv1.headers = mapOf("Origin" to "https://www.xttv.com.cn", "Referer" to "https://www.xttv.com.cn/")
+        } catch (e: Exception) {
+            Log.e(TAG, "load cctv1 channels error $e")
+            "CCTV1 获取失败".showToast()
         }
     }
 
