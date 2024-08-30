@@ -83,6 +83,12 @@ class CustomTVList {
                 appendTvList(customTvList)
             }
 
+            val defaultTvList = mutableListOf<TV>()
+            loadDefaultChannels(defaultTvList)
+            withContext(Dispatchers.Main) {
+                updateTvUri(defaultTvList)
+            }
+
             customTvList.clear()
             loadMiguVideo("CCTV 1", miguVideo[0][1], miguVideo[0][2], miguVideo[0][3], customTvList)
             loadMiguVideo("CCTV 8", miguVideo[1][1], miguVideo[1][2], miguVideo[1][3], customTvList)
@@ -102,12 +108,6 @@ class CustomTVList {
             loadSxbc(customTvList)
             withContext(Dispatchers.Main) {
                 appendTvList(customTvList)
-            }
-
-            val defaultTvList = mutableListOf<TV>()
-            loadDefaultChannels(defaultTvList)
-            withContext(Dispatchers.Main) {
-                updateTvUri(defaultTvList)
             }
         }
     }
@@ -150,7 +150,7 @@ class CustomTVList {
                 "",
                 listOf(m3u8Url),
                 mapOf("Origin" to "https://h5.nty.tv189.com", "Referer" to "https://h5.nty.tv189.com/"),
-                "看央视",
+                "看电影",
                 listOf())
             customTvList.add(tv)
         } catch (e: Exception) {
@@ -215,7 +215,7 @@ class CustomTVList {
                 "",
                 listOf(m3u8Url),
                 mapOf("Origin" to "https://www.1905.com", "Referer" to tvConfig["page"] as String),
-                "看央视",
+                "看电影",
                 listOf())
             customTvList.add(tv)
         } catch (e: Exception) {
@@ -272,7 +272,7 @@ class CustomTVList {
             val tv = TV(0, "", title, "", logo, "",
                 listOf(m3u8Url),
                 mapOf("Origin" to "https://m.miguvideo.com", "Referer" to "https://m.miguvideo.com/"),
-                "看咪咕",
+                "看央视",
                 listOf())
             customTvList.add(tv)
         } catch (e: Exception) {
@@ -451,7 +451,8 @@ class CustomTVList {
         }
 
         try {
-            var position = TVList.listModel.size
+            val oldSize = TVList.listModel.size
+            var position = oldSize
             for (v in customTvList) {
                 v.id = position
                 position += 1
@@ -480,6 +481,9 @@ class CustomTVList {
             }
 
             MainActivity.getInstance().watch()
+            if (SP.position in (oldSize + 1)..<position) {
+                startPlay()
+            }
         }  catch (e: Exception) {
             Log.e(TAG, "append custom tv channels error $e")
             "添加自定义频道失败".showToast()
