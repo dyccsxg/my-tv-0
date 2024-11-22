@@ -65,9 +65,9 @@ class CustomTVList {
         "appid" to "GEalPdWA"
     )
     private val miguVideo = arrayOf(
-        arrayOf("CCTV 1", "608807420", "zyyw", CCTV1_LOGO),
-        arrayOf("CCTV 8", "624878356", "zyww", CCTV8_LOGO),
-        arrayOf("CCTV 9", "673168140", "zybw", CCTV9_LOGO)
+        arrayOf("CCTV 1", "608807420", "zzyw", CCTV1_LOGO),
+        arrayOf("CCTV 8", "624878356", "zzww", CCTV8_LOGO),
+        arrayOf("CCTV 9", "673168140", "zzbw", CCTV9_LOGO)
     )
 
     /**
