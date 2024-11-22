@@ -33,8 +33,8 @@ class CustomTVList {
         const val TAG = "CustomTVList"
         const val DEFAULT_SERVER_URL = "https://gitee.com/usm/notes/raw/master/tv/default.json"
         const val SXBC_GET_URL = "http://toutiao.cnwest.com/static/v1/group/stream.js"
-        const val M1950_GET_URL = "https://profile.m1905.com/mvod/liveinfo.php"
-        const val M1950_AK = "THPQjp5zq5RcW0hUwz8D"
+        const val M1905_GET_URL = "https://profile.m1905.com/mvod/liveinfo.php"
+        const val M1905_AK = "AKLTgt7vZATzQL6jB6Lb"
         const val TC_TV1_GET_URL = "https://www.tcrbs.com/tvradio/tczhpd.html"
         const val TC_TV2_GET_URL = "https://www.tcrbs.com/tvradio/tcggpd.html"
         const val TV189_CCTV6_GET_URL = "https://h5.nty.tv189.com/bff/apis/user/authPlayLive?contentId=C8000000000000000001703664302519"
@@ -46,23 +46,23 @@ class CustomTVList {
         const val CCTV17_LOGO = "https://gitee.com/usm/notes/raw/master/tv/logo/cctv17.png"
         const val MIGU_PLAY_URL = "https://webapi.miguvideo.com/gateway/playurl/v2/play/playurlh5?clientId=729ecbc3982b4d46b5b888e9b20848de&startPlay=true&devId=aHRqb2lnN3U3NWwxd2JseWeJRBsvtcTie47vXBoML2sn2ig3LwNijUJnx6a5rsEh&xh265=false&channelId=0131_201600010010024&rateType=3&contId="
     }
-    private val m1950CCTV6 = mapOf(
-        "title" to "1950电影频道",
+    private val m1905CCTV6 = mapOf(
+        "title" to "1905电影频道",
         "cid" to "999999",
         "streamname" to "LIVEI56PNI726KA7A",
         "uuid" to "6c9e124e-26f3-49d4-af14-50b5f8303402",
         "playerid" to "587422994314341",
         "page" to "https://www.1905.com/cctv6/live/",
-        "appid" to "GEalPdWA"
+        "appid" to "W0hUwz8D"
     )
-    private val m1950XL = mapOf(
-        "title" to "1950高清影院",
+    private val m1905XL = mapOf(
+        "title" to "1905高清影院",
         "cid" to 999994,
         "streamname" to "LIVENCOI8M4RGOOJ9",
         "uuid" to "02d761af-25be-4745-af1d-4e24fcc1b861",
         "playerid" to "969474391143086",
         "page" to "https://www.1905.com/xl/live/",
-        "appid" to "GEalPdWA"
+        "appid" to "W0hUwz8D"
     )
     private val miguVideo = arrayOf(
         arrayOf("CCTV 1", "608807420", "zzyw", CCTV1_LOGO),
@@ -77,8 +77,8 @@ class CustomTVList {
         CoroutineScope(Dispatchers.IO).launch {
             val customTvList = mutableListOf<TV>()
             loadTv189("CCTV6 电影", TV189_CCTV6_GET_URL, customTvList)
-            load1950(m1950CCTV6, customTvList)
-            load1950(m1950XL, customTvList)
+            load1905(m1905CCTV6, customTvList)
+            load1905(m1905XL, customTvList)
             withContext(Dispatchers.Main) {
                 appendTvList(customTvList)
             }
@@ -160,9 +160,9 @@ class CustomTVList {
     }
 
     /**
-     * 加载 1950 电影网
+     * 加载 1905 电影网
      */
-    private fun load1950(tvConfig: Map<String, Any>, customTvList: MutableList<TV>) {
+    private fun load1905(tvConfig: Map<String, Any>, customTvList: MutableList<TV>) {
         try {
             val reqParams = mapOf(
                 "cid" to tvConfig["cid"]!!,
@@ -185,7 +185,7 @@ class CustomTVList {
                 .add("Referer", "https://www.1905.com/")
                 .add("Authorization", authorization)
                 .build()
-            val request = okhttp3.Request.Builder().url(M1950_GET_URL).headers(headers).post(reqBody).build()
+            val request = okhttp3.Request.Builder().url(M1905_GET_URL).headers(headers).post(reqBody).build()
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
                 return
@@ -203,8 +203,8 @@ class CustomTVList {
             }
 
             val host = getJsonProperty(respMap, "data.quality.hd.host")
-            val path = getJsonProperty(respMap, "data.path.hd.path")
-            val sign = getJsonProperty(respMap, "data.sign.hd.sign")
+            val path = getJsonProperty(respMap, "data.path.hd.uri")
+            val sign = getJsonProperty(respMap, "data.sign.hd.hashuri")
             if (host.isEmpty() || path.isEmpty() || sign.isEmpty()) {
                 return
             }
@@ -563,7 +563,7 @@ class CustomTVList {
     }
 
     private fun calcSignature(bodyMap: Map<String, Any>): String {
-        val appIdHash = calcSHA1(M1950_AK, bodyMap["appid"].toString())
+        val appIdHash = calcSHA1(M1905_AK, bodyMap["appid"].toString())
         val sortedKey = bodyMap.keys.sorted()
         val textBuff = StringBuffer()
         for (propKey in sortedKey) {
@@ -585,11 +585,14 @@ class CustomTVList {
 
     private fun calcSHA1(accessKey: String, appId: String): String {
         var text = ""
-        val sortedAccessKey = accessKey.toCharArray().sorted().joinToString("")
+        val sortedAccessKey = accessKey.toCharArray().sorted().reversed().joinToString("")
         for ( idx in accessKey.indices) {
-            text += accessKey[idx] + "=" + sortedAccessKey[idx] + "&"
+            if (text.isNotEmpty()) {
+                text += "."
+            }
+            text += accessKey[idx] + "-" + sortedAccessKey[idx]
         }
-        text += appId
+        text += "1905$appId"
 
         val digest = MessageDigest.getInstance("SHA-1")
         val hash = digest.digest(text.toByteArray())
