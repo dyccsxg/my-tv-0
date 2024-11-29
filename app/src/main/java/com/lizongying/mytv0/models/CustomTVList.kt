@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.util.Timer
 import java.util.regex.Pattern
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -25,6 +26,7 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
+import kotlin.concurrent.timer
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -69,6 +71,7 @@ class CustomTVList {
         arrayOf("CCTV 8", "624878356", "zzww", CCTV8_LOGO),
         arrayOf("CCTV 9", "673168140", "zzbw", CCTV9_LOGO)
     )
+    private lateinit var refreshTvUriTimer: Timer
 
     /**
      * 加载自定义电视频道
@@ -86,7 +89,7 @@ class CustomTVList {
             val defaultTvList = mutableListOf<TV>()
             loadDefaultChannels(defaultTvList)
             withContext(Dispatchers.Main) {
-                updateTvUri(defaultTvList)
+                updateTvUri(defaultTvList, true)
             }
 
             customTvList.clear()
@@ -108,6 +111,23 @@ class CustomTVList {
             loadSxbc(customTvList)
             withContext(Dispatchers.Main) {
                 appendTvList(customTvList)
+            }
+        }
+        refreshTvUri()
+    }
+
+    private fun refreshTvUri() {
+        if (this::refreshTvUriTimer.isInitialized) {
+            refreshTvUriTimer.cancel()
+        }
+        refreshTvUriTimer = timer("refresh-tv-uri", false, 300000, 300000) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val customTvList = mutableListOf<TV>()
+                load1905(m1905CCTV6, customTvList)
+                load1905(m1905XL, customTvList)
+                withContext(Dispatchers.Main) {
+                    updateTvUri(customTvList, false)
+                }
             }
         }
     }
@@ -220,7 +240,6 @@ class CustomTVList {
             customTvList.add(tv)
         } catch (e: Exception) {
             Log.e(TAG, "load 1950 movie channels error $e")
-            "1950电影网 获取失败".showToast()
         }
     }
 
@@ -490,7 +509,7 @@ class CustomTVList {
         }
     }
 
-    private fun updateTvUri(newTvList: MutableList<TV>) {
+    private fun updateTvUri(newTvList: MutableList<TV>, autoPlay: Boolean) {
         if (newTvList.isEmpty()) {
             return
         }
@@ -520,12 +539,11 @@ class CustomTVList {
                 }
                 Log.i(TAG, "$title refresh uri from $oldUri to $newUri")
             }
-            if (SP.position != position || isUriChanged) {
+            if (autoPlay && (SP.position != position || isUriChanged)) {
                 startPlay()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Refresh tv uri failed $e")
-            "頻道地址 更新失败".showToast()
         }
     }
 
