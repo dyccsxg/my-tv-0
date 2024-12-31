@@ -68,6 +68,7 @@ class CustomTVList {
     )
     private val miguVideo = arrayOf(
         arrayOf("CCTV 1", "608807420", "zzyw", CCTV1_LOGO),
+        arrayOf("CCTV 6", "624878396", "zzww", CCTV6_LOGO),
         arrayOf("CCTV 8", "624878356", "zzww", CCTV8_LOGO),
         arrayOf("CCTV 9", "673168140", "zzbw", CCTV9_LOGO)
     )
@@ -94,8 +95,9 @@ class CustomTVList {
 
             customTvList.clear()
             loadMiguVideo("CCTV 1", miguVideo[0][1], miguVideo[0][2], miguVideo[0][3], customTvList)
-            loadMiguVideo("CCTV 8", miguVideo[1][1], miguVideo[1][2], miguVideo[1][3], customTvList)
-            loadMiguVideo("CCTV 9", miguVideo[2][1], miguVideo[2][2], miguVideo[2][3], customTvList)
+            loadMiguVideo("CCTV 6", miguVideo[1][1], miguVideo[1][2], miguVideo[1][3], customTvList)
+            loadMiguVideo("CCTV 8", miguVideo[2][1], miguVideo[2][2], miguVideo[2][3], customTvList)
+            loadMiguVideo("CCTV 9", miguVideo[3][1], miguVideo[3][2], miguVideo[3][3], customTvList)
             withContext(Dispatchers.Main) {
                 appendTvList(customTvList)
             }
